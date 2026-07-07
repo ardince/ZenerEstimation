@@ -1,15 +1,16 @@
 """
 ZenerEstimation
 
-Scientific framework for battery voltage forecasting
-and Remaining Useful Life estimation.
+Scientific framework for degradation modelling and forecasting.
 """
 
-from .version import VERSION
 from .pipeline import ForecastPipeline
+from .version import __version__
 
-__version__ = VERSION
+from .data import BatteryDataset
 
 __all__ = [
     "ForecastPipeline",
+    "BatteryDataset",
+    "__version__",
 ]

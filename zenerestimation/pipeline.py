@@ -1,13 +1,11 @@
-pipe = ForecastPipeline(config)
+"""
+Main forecasting pipeline.
 
-pipe.load_dataset(...)
+This module will be implemented in Sprint 3.
+"""
 
-pipe.train()
 
-pipe.forecast()
+class ForecastPipeline:
+    """Placeholder pipeline."""
 
-pipe.evaluate()
-
-pipe.estimate_rul()
-
-pipe.show_dashboard()
+    pass
