@@ -12,6 +12,11 @@ import pandas as pd
 
 from ..exceptions import DatasetValidationError
 
+from .preprocessing import (
+    remove_duplicates,
+    sort_by_date,
+)
+
 
 class BatteryDataset:
     """
@@ -49,6 +54,20 @@ class BatteryDataset:
         df = pd.read_csv(path)
 
         return cls(df)
+
+    
+    def clean(self):
+        """
+        Clean dataset before forecasting.
+        """
+
+        self.prepare()
+
+        self.data = remove_duplicates(self.data)
+
+        self.data = sort_by_date(self.data)
+
+        return self
 
     # ---------------------------------------------------------
     # Validation
