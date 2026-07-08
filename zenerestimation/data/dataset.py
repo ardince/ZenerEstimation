@@ -170,6 +170,56 @@ class BatteryDataset:
         return "Irregular"
 
     # ---------------------------------------------------------
+    # Missing period detection
+    # ---------------------------------------------------------
+
+    def expected_index(self):
+        """
+        Construct the complete expected datetime index.
+        """
+
+        self.prepare()
+
+        freq = self.detect_frequency()
+
+        mapping = {
+            "Monthly": "MS",
+            "Quarterly": "QS",
+            "Semiannual": "2QS",
+            "Annual": "YS",
+        }
+
+        if freq not in mapping:
+            return None
+
+        return pd.date_range(
+            start=self.data["ds"].min(),
+            end=self.data["ds"].max(),
+            freq=mapping[freq],
+        )
+
+
+    def missing_periods(self):
+
+        """
+        Detect missing quarterly measurements.
+        """
+
+        self.prepare()
+
+        full_index = pd.date_range(
+            start=self.data["ds"].min(),
+            end=self.data["ds"].max(),
+            freq="3MS",
+        )
+
+        existing = pd.DatetimeIndex(self.data["ds"])
+
+        missing = full_index.difference(existing)
+
+        return missing
+
+    # ---------------------------------------------------------
     # Missing-data handling
     # ---------------------------------------------------------
 
@@ -241,6 +291,7 @@ class BatteryDataset:
             "start": self.data["ds"].min(),
             "end": self.data["ds"].max(),
             "frequency": self.detect_frequency(),
+            "missing_periods": len(self.missing_periods()),
         }
 
     # ---------------------------------------------------------
