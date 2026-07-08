@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Core dataset representation.
 
@@ -5,101 +7,128 @@ Every forecasting algorithm in ZenerEstimation operates on a
 BatteryDataset instead of directly manipulating pandas DataFrames.
 """
 
-from __future__ import annotations
+"""
+Dataset handling utilities.
 
-from dataclasses import dataclass, field
-from typing import Any
+Sprint 2
+"""
+
+from pathlib import Path
 
 import pandas as pd
 
 
-@dataclass(slots=True)
 class BatteryDataset:
     """
-    Central dataset object.
+    Container for battery degradation datasets.
 
-    Parameters
-    ----------
-    dataframe
-        Input pandas DataFrame.
+    Expected columns
+    ----------------
+    ds
+        Measurement date.
 
-    date_column
-        Name of datetime column.
-
-    value_column
-        Name of measurement column.
+    microVolt
+        Measured battery voltage.
     """
 
-    dataframe: pd.DataFrame
+    REQUIRED_COLUMNS = ["ds", "microVolt"]
 
-    date_column: str = "Date"
+    def __init__(self, dataframe: pd.DataFrame):
+        self.data = dataframe.copy()
 
-    value_column: str = "Value"
+    # ---------------------------------------------------------
+    # Constructors
+    # ---------------------------------------------------------
 
-    metadata: dict[str, Any] = field(default_factory=dict)
+    @classmethod
+    def from_csv(cls, filename):
+        """
+        Load a BatteryDataset from a CSV file.
+        """
 
-    @property
-    def dates(self) -> pd.Series:
-        """Return date column."""
-        return self.dataframe[self.date_column]
+        path = Path(filename)
 
-    @property
-    def values(self) -> pd.Series:
-        """Return measurement column."""
-        return self.dataframe[self.value_column]
+        if not path.exists():
+            raise FileNotFoundError(path)
 
-    @property
-    def n_samples(self) -> int:
-        """Number of observations."""
-        return len(self.dataframe)
+        df = pd.read_csv(path)
 
-    @property
-    def start_date(self):
-        """First measurement."""
-        return self.dates.iloc[0]
+        return cls(df)
 
-    @property
-    def end_date(self):
-        """Last measurement."""
-        return self.dates.iloc[-1]
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
 
-    @property
-    def duration(self):
-        """Measurement duration."""
-        return self.end_date - self.start_date
+    def validate(self):
+        """
+        Validate required columns.
+        """
 
-    def summary(self) -> dict:
+        missing = [
+            column
+            for column in self.REQUIRED_COLUMNS
+            if column not in self.data.columns
+        ]
+
+        if missing:
+            raise ValueError(
+                f"Missing required columns: {missing}"
+            )
+
+    # ---------------------------------------------------------
+    # Preparation
+    # ---------------------------------------------------------
+
+    def prepare(self):
+        """
+        Prepare dataset for forecasting.
+        """
+
+        self.validate()
+
+        self.data["ds"] = pd.to_datetime(
+            self.data["ds"],
+            dayfirst=True,
+        )
+
+        self.data = (
+            self.data
+            .sort_values("ds")
+            .drop_duplicates(subset="ds")
+            .reset_index(drop=True)
+        )
+
+    # ---------------------------------------------------------
+    # Statistics
+    # ---------------------------------------------------------
+
+    def summary(self):
         """
         Return dataset summary.
         """
 
+        self.prepare()
+
         return {
-            "samples": self.n_samples,
-            "start": self.start_date,
-            "end": self.end_date,
-            "duration": self.duration,
-            "value_column": self.value_column,
-            "date_column": self.date_column,
-            "metadata": self.metadata,
+            "rows": len(self.data),
+            "columns": len(self.data.columns),
+            "missing": int(self.data.isna().sum().sum()),
+            "start": self.data["ds"].min(),
+            "end": self.data["ds"].max(),
         }
 
-    def copy(self) -> "BatteryDataset":
-        """
-        Deep copy.
-        """
+    # ---------------------------------------------------------
+    # Representation
+    # ---------------------------------------------------------
 
-        return BatteryDataset(
-            dataframe=self.dataframe.copy(),
-            date_column=self.date_column,
-            value_column=self.value_column,
-            metadata=self.metadata.copy(),
-        )
+    def __len__(self):
 
-    def __repr__(self) -> str:
+        return len(self.data)
+
+    def __repr__(self):
 
         return (
             f"BatteryDataset("
-            f"samples={self.n_samples}, "
-            f"date='{self.date_column}', "
-            f"value='{self.value_column}')"
+            f"rows={len(self.data)}, "
+            f"columns={list(self.data.columns)})"
         )

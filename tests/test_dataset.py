@@ -7,12 +7,11 @@ def test_dataset_creation():
 
     df = pd.DataFrame(
         {
-            "Date": pd.date_range("2024-01-01", periods=5),
-            "Value": [1, 2, 3, 4, 5],
+            "ds": ["01/01/2024"],
+            "microVolt": [180.0],
         }
     )
 
     dataset = BatteryDataset(df)
 
-    assert dataset.n_samples == 5
-    assert dataset.value_column == "Value"
+    assert len(dataset.data) == 1

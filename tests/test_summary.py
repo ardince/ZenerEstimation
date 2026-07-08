@@ -7,8 +7,16 @@ def test_summary():
 
     df = pd.DataFrame(
         {
-            "Date": pd.date_range("2024-01-01", periods=3),
-            "Value": [10, 11, 12],
+            "ds": [
+                "01/01/2024",
+                "01/04/2024",
+                "01/07/2024",
+            ],
+            "microVolt": [
+                182.3,
+                181.8,
+                181.1,
+            ],
         }
     )
 
@@ -16,4 +24,6 @@ def test_summary():
 
     summary = dataset.summary()
 
-    assert summary["samples"] == 3
+    assert summary["rows"] == 3
+    assert summary["columns"] == 2
+    assert summary["missing"] == 0
