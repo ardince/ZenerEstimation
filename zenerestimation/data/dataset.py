@@ -119,6 +119,57 @@ class BatteryDataset:
         return self
 
     # ---------------------------------------------------------
+    # Frequency detection
+    # ---------------------------------------------------------
+
+    def sampling_days(self):
+        """
+        Median sampling interval in days.
+        """
+
+        self.prepare()
+
+        delta = self.data["ds"].diff().dropna()
+
+        if len(delta) == 0:
+            return None
+
+        return float(delta.dt.days.median())
+
+
+    def detect_frequency(self):
+        """
+        Detect the dataset sampling frequency.
+
+        Returns
+        -------
+        Monthly
+        Quarterly
+        Semiannual
+        Annual
+        Irregular
+        """
+
+        days = self.sampling_days()
+
+        if days is None:
+            return "Unknown"
+
+        if 25 <= days <= 35:
+            return "Monthly"
+
+        if 80 <= days <= 100:
+            return "Quarterly"
+
+        if 170 <= days <= 190:
+            return "Semiannual"
+
+        if 350 <= days <= 380:
+            return "Annual"
+
+        return "Irregular"
+
+    # ---------------------------------------------------------
     # Missing-data handling
     # ---------------------------------------------------------
 
@@ -189,6 +240,7 @@ class BatteryDataset:
             "missing": self.missing_count(),
             "start": self.data["ds"].min(),
             "end": self.data["ds"].max(),
+            "frequency": self.detect_frequency(),
         }
 
     # ---------------------------------------------------------
