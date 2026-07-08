@@ -17,6 +17,8 @@ from .preprocessing import (
     sort_by_date,
 )
 
+from .diagnostics import dataset_report
+
 
 class BatteryDataset:
     """
@@ -68,6 +70,16 @@ class BatteryDataset:
         self.data = sort_by_date(self.data)
 
         return self
+
+    
+    def report(self):
+        """
+        Return a diagnostics report.
+        """
+
+        self.prepare()
+
+        return dataset_report(self.data)
 
     # ---------------------------------------------------------
     # Validation
