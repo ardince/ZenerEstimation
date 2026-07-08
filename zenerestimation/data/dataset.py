@@ -16,6 +16,14 @@ from ..exceptions import DatasetValidationError
 class BatteryDataset:
     """
     Container for battery degradation datasets.
+
+    Expected columns
+    ----------------
+    ds
+        Measurement date.
+
+    microVolt
+        Measured battery voltage.
     """
 
     REQUIRED_COLUMNS = ["ds", "microVolt"]
@@ -69,12 +77,6 @@ class BatteryDataset:
                 f"Missing required columns: {missing}"
             )
 
-        # Missing values
-        if self.data[self.REQUIRED_COLUMNS].isna().any().any():
-            raise DatasetValidationError(
-                "Dataset contains missing values."
-            )
-
         # Numeric voltage
         try:
             self.data["microVolt"] = pd.to_numeric(
@@ -110,21 +112,81 @@ class BatteryDataset:
         self.data = (
             self.data
             .sort_values("ds")
+            .drop_duplicates(subset="ds")
             .reset_index(drop=True)
         )
+
+        return self
+
+    # ---------------------------------------------------------
+    # Missing-data handling
+    # ---------------------------------------------------------
+
+    def missing_count(self):
+        """
+        Return total number of missing values.
+        """
+
+        return int(self.data.isna().sum().sum())
+
+    def has_missing(self):
+        """
+        True if dataset contains missing values.
+        """
+
+        return self.missing_count() > 0
+
+    def interpolate(self):
+        """
+        Linear interpolation of voltage values.
+        """
+
+        self.data["microVolt"] = (
+            self.data["microVolt"]
+            .interpolate(method="linear")
+        )
+
+        return self
+
+    def forward_fill(self):
+        """
+        Forward-fill voltage values.
+        """
+
+        self.data["microVolt"] = (
+            self.data["microVolt"]
+            .ffill()
+        )
+
+        return self
+
+    def backward_fill(self):
+        """
+        Backward-fill voltage values.
+        """
+
+        self.data["microVolt"] = (
+            self.data["microVolt"]
+            .bfill()
+        )
+
+        return self
 
     # ---------------------------------------------------------
     # Statistics
     # ---------------------------------------------------------
 
     def summary(self):
+        """
+        Return dataset summary.
+        """
 
         self.prepare()
 
         return {
             "rows": len(self.data),
             "columns": len(self.data.columns),
-            "missing": int(self.data.isna().sum().sum()),
+            "missing": self.missing_count(),
             "start": self.data["ds"].min(),
             "end": self.data["ds"].max(),
         }
@@ -137,6 +199,7 @@ class BatteryDataset:
         return len(self.data)
 
     def __repr__(self):
+
         return (
             f"BatteryDataset("
             f"rows={len(self.data)}, "
