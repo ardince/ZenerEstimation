@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 """
-Dataset handling utilities.
+Battery dataset abstraction.
 
-Sprint 2
+This module defines the BatteryDataset class, which provides a unified
+interface for loading, validating, cleaning, resampling, interpolating,
+and analyzing battery degradation datasets.
+
+All forecasting algorithms in ZenerEstimation operate on this class
+rather than directly manipulating pandas DataFrames.
 """
 
 from pathlib import Path
@@ -18,6 +23,13 @@ from .preprocessing import (
 )
 
 from .diagnostics import dataset_report
+
+from .features import (
+    delta,
+    percentage_change,
+    rolling_mean,
+    rolling_std,
+)
 
 
 class BatteryDataset:
@@ -80,6 +92,61 @@ class BatteryDataset:
         self.prepare()
 
         return dataset_report(self.data)
+
+    
+    def add_delta(self):
+        """
+        Add first-difference feature.
+        """
+
+        self.data["delta"] = delta(
+        self.data["microVolt"]
+        )
+
+        return self
+
+    
+    def add_pct_change(self):
+        """
+        Add percentage-change feature.
+        """
+
+        self.data["pct_change"] = percentage_change(
+        self.data["microVolt"]
+        )
+
+        return self
+
+    
+    def add_rolling_mean(
+        self,
+        window=4,
+    ):
+        """
+        Add rolling mean.
+        """
+
+        self.data["rolling_mean"] = rolling_mean(
+        self.data["microVolt"],
+        window,
+        )
+
+        return self
+
+    def add_rolling_std(
+        self,
+        window=4,
+    ):
+        """
+        Add rolling standard deviation.
+        """
+
+        self.data["rolling_std"] = rolling_std(
+        self.data["microVolt"],
+        window,
+        )
+
+        return self
 
     # ---------------------------------------------------------
     # Validation
