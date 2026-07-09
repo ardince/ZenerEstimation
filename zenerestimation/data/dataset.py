@@ -14,6 +14,7 @@ rather than directly manipulating pandas DataFrames.
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from ..exceptions import DatasetValidationError
 
@@ -450,6 +451,74 @@ class BatteryDataset:
             "frequency": self.detect_frequency(),
             "missing_periods": len(self.missing_periods()),
         }
+
+    # ---------------------------------------------------------
+    # Exploratory statistics
+    # ---------------------------------------------------------
+
+    def statistics(self):
+        """
+        Return descriptive statistics for the voltage series.
+        """
+
+        self.prepare()
+
+        values = self.data["microVolt"]
+
+        return {
+            "count": len(values),
+            "mean": float(values.mean()),
+            "median": float(values.median()),
+            "std": float(values.std()),
+            "variance": float(values.var()),
+            "minimum": float(values.min()),
+            "maximum": float(values.max()),
+            "range": float(values.max() - values.min()),
+        }
+
+
+    def percentiles(self):
+        """
+        Return common percentiles.
+        """
+
+        self.prepare()
+
+        values = self.data["microVolt"]
+
+        return {
+            "q25": float(values.quantile(0.25)),
+            "q50": float(values.quantile(0.50)),
+            "q75": float(values.quantile(0.75)),
+        }
+
+
+    def coefficient_of_variation(self):
+        """
+        Return coefficient of variation.
+        """
+
+        self.prepare()
+
+        values = self.data["microVolt"]
+
+        return float(values.std() / values.mean())
+
+
+    def trend(self):
+        """
+        Estimate linear trend.
+        """
+
+        self.prepare()
+
+        y = self.data["microVolt"].to_numpy()
+
+        x = np.arange(len(y))
+
+        slope = np.polyfit(x, y, 1)[0]
+
+        return float(slope)
 
     # ---------------------------------------------------------
     # Representation
