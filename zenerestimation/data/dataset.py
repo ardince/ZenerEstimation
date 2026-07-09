@@ -150,6 +150,65 @@ class BatteryDataset:
         return self
 
     # ---------------------------------------------------------
+    # Resampling
+    # ---------------------------------------------------------
+
+    def resample(
+        self,
+        frequency="QS",
+        method="mean",
+    ):
+        """
+        Resample the dataset.
+
+        Parameters
+        ----------
+        frequency
+        Pandas frequency string
+        ("QS", "MS", "W", "D", ...)
+
+        method
+        Aggregation method.
+
+        Returns
+        -------
+        BatteryDataset
+        """
+
+        self.prepare()
+
+        df = self.data.copy()
+
+        df = df.set_index("ds")
+
+        if method == "mean":
+            df = df.resample(frequency).mean(numeric_only=True)
+
+        elif method == "median":
+            df = df.resample(frequency).median(numeric_only=True)
+
+        elif method == "max":
+            df = df.resample(frequency).max(numeric_only=True)
+
+        elif method == "min":
+            df = df.resample(frequency).min(numeric_only=True)
+
+        elif method == "first":
+            df = df.resample(frequency).first()
+
+        elif method == "last":
+            df = df.resample(frequency).last()
+
+        else:
+            raise ValueError(
+                f"Unknown aggregation method: {method}"
+            )
+
+        df = df.reset_index()
+
+        return BatteryDataset(df)
+
+    # ---------------------------------------------------------
     # Frequency detection
     # ---------------------------------------------------------
 
