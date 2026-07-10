@@ -8,8 +8,10 @@ utilities.
 
 from .dataset import BatteryDataset
 from .windows import WindowGenerator
+from .analysis import DatasetAnalyzer
 
 __all__ = [
     "BatteryDataset",
     "WindowGenerator",
+    "DatasetAnalyzer",
 ]

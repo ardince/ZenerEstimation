@@ -158,6 +158,15 @@ class BatteryDataset:
 
         return WindowGenerator(self).generate(window)
 
+    
+    def report(self):
+        """
+        Return a complete dataset report.
+        """
+        from .analysis import DatasetAnalyzer
+
+        return DatasetAnalyzer(self).report()
+
     # ---------------------------------------------------------
     # Validation
     # ---------------------------------------------------------
