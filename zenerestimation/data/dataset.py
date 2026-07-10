@@ -32,6 +32,8 @@ from .features import (
     rolling_std,
 )
 
+from .smart_loader import SmartDatasetLoader
+
 
 class BatteryDataset:
     """
@@ -51,6 +53,12 @@ class BatteryDataset:
     def __init__(self, dataframe: pd.DataFrame):
         self.data = dataframe.copy()
 
+    def __init__(self, dataframe):
+
+        self.data = dataframe.copy()
+
+        self.metadata = {}
+
     # ---------------------------------------------------------
     # Constructors
     # ---------------------------------------------------------
@@ -58,17 +66,27 @@ class BatteryDataset:
     @classmethod
     def from_csv(cls, filename):
         """
-        Load dataset from CSV.
+        Load dataset from SmartDatasetLoader.
         """
 
-        path = Path(filename)
+        loader = SmartDatasetLoader()
 
-        if not path.exists():
-            raise FileNotFoundError(path)
+        df, metadata = loader.load(filename)
 
-        df = pd.read_csv(path)
+        dataset = cls(df)
 
-        return cls(df)
+        dataset.metadata = metadata
+
+        return dataset
+
+        #path = Path(filename)
+
+        #if not path.exists():
+         #   raise FileNotFoundError(path)
+
+        #df = pd.read_csv(path)
+
+        #return cls(df)
 
     
     def clean(self):
