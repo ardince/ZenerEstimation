@@ -149,6 +149,15 @@ class BatteryDataset:
 
         return self
 
+    
+    def windows(self, window: int):
+        """
+        Generate rolling windows.
+        """
+        from .windows import WindowGenerator
+
+        return WindowGenerator(self).generate(window)
+
     # ---------------------------------------------------------
     # Validation
     # ---------------------------------------------------------

@@ -7,5 +7,9 @@ utilities.
 """
 
 from .dataset import BatteryDataset
+from .windows import WindowGenerator
 
-__all__ = ["BatteryDataset"]
+__all__ = [
+    "BatteryDataset",
+    "WindowGenerator",
+]
