@@ -27,11 +27,12 @@ class DatasetPlotter:
             marker="o",
         )
 
-        ax.set_title("Battery Voltage")
+        #ax.set_title("Battery Voltage")
+        ax.set_title("Battery Voltage Measurements")
 
         ax.set_xlabel("Date")
 
-        ax.set_ylabel("microVolt")
+        ax.set_ylabel("Voltage (µV)")
 
         ax.grid(True)
 
@@ -58,3 +59,15 @@ class DatasetPlotter:
         ax.set_title("Voltage Boxplot")
 
         return fig
+
+    
+def plot_dataset(dataset):
+    """
+    Convenience wrapper.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+
+    return DatasetPlotter(dataset).plot_series()
