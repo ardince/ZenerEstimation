@@ -1,7 +1,7 @@
 from zenerestimation.data import BatteryDataset
 
-dataset = BatteryDataset.from_csv("datasets/raw/732B-5610110.csv")
-#dataset = BatteryDataset.from_csv("datasets/raw/732B-5610410.csv")
+#dataset = BatteryDataset.from_csv("datasets/raw/732B-5610110.csv")
+dataset = BatteryDataset.from_csv("datasets/raw/732B-5610410.csv")
 
 print("\nSMART LOADER DEMO")
 print("-" * 40)
