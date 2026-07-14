@@ -5,6 +5,10 @@ Provides a common execution interface for all
 forecasting models.
 """
 
+# TODO (Sprint 5):
+# Replace 'steps' with a ForecastConfig object once
+# forecasting models (ARIMA, Kalman, LSTM, GRU) are implemented.
+
 from __future__ import annotations
 
 from .models import ModelRegistry
