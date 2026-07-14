@@ -184,6 +184,14 @@ class BatteryDataset:
         from .analysis import DatasetAnalyzer
 
         return DatasetAnalyzer(self).report()
+    
+
+    @property
+    def target(self):
+        """
+        Return the forecasting target series.
+        """
+        return self.data["microVolt"]
 
     # ---------------------------------------------------------
     # Validation
