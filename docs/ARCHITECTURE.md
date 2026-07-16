@@ -386,6 +386,20 @@ Version 0.3
 - Bayesian uncertainty
 - Monte Carlo simulation
 
+# Architecture
+
+Version 0.5
+
+Current Components
+
+✓ Smart Loader
+✓ BatteryDataset
+✓ ForecastPipeline
+✓ BaseForecastModel
+✓ ForecastResult
+✓ ExperimentResult
+✓ ARIMAForecaster
+
 Version 1.0
 
 Stable scientific framework for battery degradation analysis,
