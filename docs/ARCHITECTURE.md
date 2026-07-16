@@ -348,7 +348,7 @@ zenerestimation/
 
 ---
 
-## Sprint 4 (Current)
+## Sprint 4
 
 ✔ Smart Dataset Loader
 
@@ -363,6 +363,24 @@ zenerestimation/
 □ GRU
 
 □ Hybrid
+
+
+## Sprint 5 (Current)
+
+                    ForecastPipeline
+                           │
+                           ▼
+                  BaseForecastModel
+                           │
+                           ▼
+                    ForecastResult
+                      │         │
+          ┌───────────┘         └───────────┐
+          ▼                                 ▼
+    ForecastPlot                    ExperimentResult
+          │                                 │
+          ▼                                 ▼
+     PNG Figure                   JSON / TXT / LOG
 
 ---
 

@@ -11,20 +11,6 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-@property
-def first_forecast(self):
-    """
-    Return the first forecast value.
-    """
-    return self.forecast.iloc[0]
-
-@property
-def last_forecast(self):
-    """
-    Return the last forecast value.
-    """
-    return self.forecast.iloc[-1]
-
 
 @dataclass
 class ForecastResult:
@@ -41,6 +27,22 @@ class ForecastResult:
     dates: pd.DatetimeIndex
 
     metadata: dict = field(default_factory=dict)
+
+
+    @property
+    def first_forecast(self):
+        """
+        Return the first forecast value.
+        """
+        return self.forecast.iloc[0]
+
+    @property
+    def last_forecast(self):
+        """
+        Return the last forecast value.
+        """
+        return self.forecast.iloc[-1]
+
 
     def __len__(self):
 
@@ -79,3 +81,11 @@ class ForecastResult:
             f"horizon={self.horizon}, "
             f"points={len(self.forecast)})"
         )
+    
+
+    def __post_init__(self):
+
+        if len(self.forecast) != len(self.dates):
+            raise ValueError(
+            "forecast and dates must have the same length."
+            )

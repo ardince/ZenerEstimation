@@ -51,36 +51,36 @@ class ForecastPlot:
         self._axes = ax
 
         ax.plot(
-        self.dataset.data["ds"],
-        self.dataset.data["microVolt"],
-        marker="o",
-        label="History",
+            self.dataset.data["ds"],
+            self.dataset.data["microVolt"],
+            marker="o",
+            label="History",
         )
 
         ax.plot(
-        self.result.dates,
-        self.result.values,
-        marker="o",
-        linestyle="--",
-        label="Forecast",
+            self.result.dates,
+            self.result.forecast,
+            marker="o",
+            linestyle="--",
+            label="Forecast",
         )
 
         ax.axvline(
-        self.dataset.data["ds"].iloc[-1],
-        linestyle=":",
-        linewidth=1,
+            self.dataset.data["ds"].iloc[-1],
+            linestyle=":",
+            linewidth=1,
         )
 
         ax.set_title(
-        "Battery Voltage Forecast"
+            "Battery Voltage Forecast"
         )
 
         ax.set_xlabel(
-        "Date"
+            "Date"
         )
 
         ax.set_ylabel(
-        "Voltage (µV)"
+            "Voltage (µV)"
         )
 
         ax.grid(True)
