@@ -42,7 +42,8 @@ class ForecastPlot:
         return self._axes
     
 
-    def plot(self):
+    def plot(self, title="Battery Voltage Forecast",):
+
         fig, ax = plt.subplots(
         figsize=(10, 5)
         )
@@ -71,9 +72,7 @@ class ForecastPlot:
             linewidth=1,
         )
 
-        ax.set_title(
-            "Battery Voltage Forecast"
-        )
+        ax.set_title(title)
 
         ax.set_xlabel(
             "Date"

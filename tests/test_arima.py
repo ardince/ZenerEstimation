@@ -2,7 +2,7 @@ import pandas as pd
 
 from zenerestimation.data import BatteryDataset
 from zenerestimation.forecasting import ForecastResult
-from zenerestimation.models.arima import ARIMAForecaster
+from zenerestimation.forecasting.arima import ARIMAForecaster
 
 
 def create_dataset():

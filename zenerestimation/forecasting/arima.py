@@ -3,10 +3,8 @@ from __future__ import annotations
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 
-from zenerestimation.forecasting import (
-    BaseForecastModel,
-    ForecastResult,
-    )
+from zenerestimation.forecasting.base import BaseForecastModel
+from zenerestimation.forecasting.result import ForecastResult
 
 class ARIMAForecaster(BaseForecastModel):
 
@@ -73,9 +71,9 @@ class ARIMAForecaster(BaseForecastModel):
             horizon=steps,
             dates=dates,
             metadata={
-            "order": self.order,
-            "aic": self.result.aic,
-            "bic": self.result.bic,
+            "order": list(self.order),
+            "aic": float(self.result.aic),
+            "bic": float(self.result.bic),
             },
         )
     
