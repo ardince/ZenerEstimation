@@ -8,9 +8,7 @@ venv/
 .env
 
 .pytest_cache/
-
 .mypy_cache/
-
 .ruff_cache/
 
 .ipynb_checkpoints/
@@ -19,10 +17,15 @@ build/
 dist/
 *.egg-info/
 
-results/
+# Generated experiment artifacts
+results/*
+!results/.gitkeep
+!results/README.md
 
-*.png
-*.pdf
+results/*.png
+results/*.pdf
+results/*.json
+results/*.txt
 
 .DS_Store
 Thumbs.db
