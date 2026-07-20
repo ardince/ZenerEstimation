@@ -57,8 +57,6 @@ def create_result_files(battery, model,suffix=None,):
 
     log = RESULTS_DIR / f"{prefix}.log"
 
-    prefix = f"{stamp}_{battery}_{model}"
-
     if suffix:
         prefix += f"_{suffix}"
 

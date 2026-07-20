@@ -32,8 +32,14 @@ from zenerestimation.forecasting.arima import ARIMAForecaster
 from zenerestimation.visualization.forecast import ForecastPlot
 from zenerestimation.experiment import Experiment
 from zenerestimation.utils.registry import ExperimentRegistry
-from zenerestimation.utils.results import create_result_files
+
 from zenerestimation.utils.console import Console
+
+from zenerestimation.utils.results import (
+    create_result_files,
+    save_metadata,
+    save_report,
+)
 
 
 # ============================================================
@@ -183,13 +189,91 @@ registry = ExperimentRegistry()
 
 experiment = registry.register(experiment)
 
-Console.success(
-    f"Experiment #{experiment.id} registered."
+# ============================================================
+# Save Metadata
+# ============================================================
+
+save_metadata(
+
+    paths.metadata,
+
+    {
+
+        "experiment": experiment.to_dict(),
+
+        "forecast": result.summary(),
+
+        "dataset": summary,
+
+    },
+
+)
+
+# ============================================================
+# Save Report
+# ============================================================
+
+report = f"""
+ZenerEstimation Experiment Report
+=================================
+
+Experiment ID : {experiment.id}
+
+Battery       : {battery}
+
+Model         : {MODEL}
+
+Framework     : {FRAMEWORK_VERSION}
+
+Execution     : {experiment.execution_time:.2f} s
+
+
+Dataset
+
+-------
+
+Measurements  : {summary['rows']}
+
+Frequency     : {summary['frequency']}
+
+Missing       : {summary['missing']}
+
+Missing Qtrs  : {summary['missing_periods']}
+
+
+Forecast
+
+--------
+
+Horizon       : {result.horizon}
+
+First Value   : {result.first_forecast:.4f}
+
+Last Value    : {result.last_forecast:.4f}
+
+
+Metadata
+
+--------
+
+{result.metadata}
+"""
+
+save_report(
+
+    paths.report,
+
+    report,
+
 )
 
 # ============================================================
 # Summary
 # ============================================================
+
+Console.success(
+    f"Experiment #{experiment.id} registered."
+)
 
 Console.section("Dataset Summary")
 
@@ -207,6 +291,13 @@ print(f"Battery           : {experiment.battery}")
 print(f"Model             : {experiment.model}")
 print(f"Horizon           : {experiment.horizon}")
 print(f"Execution Time    : {experiment.execution_time:.2f} s")
+
+
+#print(result.fitted.head())
+
+#print()
+
+#print(result.forecast)
 
 # ============================================================
 # Footer

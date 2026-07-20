@@ -27,7 +27,11 @@ class ForecastResult:
 
     dates: pd.DatetimeIndex
 
+    # NEW
+    fitted: pd.Series | None = None
+
     metadata: dict = field(default_factory=dict)
+
 
     def __len__(self):
 
@@ -110,6 +114,7 @@ class ForecastResult:
             "points": len(self.forecast),
             "start": self.dates.min().strftime("%Y-%m-%d"),
             "end": self.dates.max().strftime("%Y-%m-%d"),
+            "has_fit": self.fitted is not None,
         }
 
         summary.update(self.metadata)

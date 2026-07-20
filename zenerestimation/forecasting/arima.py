@@ -16,7 +16,7 @@ class ARIMAForecaster(BaseForecastModel):
         return self.result.summary()
 
 
-    def __init__(self, order=(1, 1, 1)):
+    def __init__(self, order=(20, 1, 0)):
 
         self.order = order
 
@@ -41,6 +41,17 @@ class ARIMAForecaster(BaseForecastModel):
         )
 
         self.result = self.model.fit()
+
+        self.fitted = self.result.fittedvalues
+
+        #print("\n=== Measured ===")
+        #print(series.head(10))
+
+        #print("\n=== fittedvalues ===")
+        #print(self.result.fittedvalues.head(10))
+
+        #print("\n=== predict() ===")
+        #print(self.result.predict().head(10))
 
         return self
     
@@ -67,6 +78,10 @@ class ARIMAForecaster(BaseForecastModel):
 
         return ForecastResult(
             model="ARIMA",
+
+            # NEW
+            fitted=self.result.fittedvalues,
+
             forecast=forecast,
             horizon=steps,
             dates=dates,
