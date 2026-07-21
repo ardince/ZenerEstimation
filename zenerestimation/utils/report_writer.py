@@ -111,7 +111,7 @@ class ReportWriter:
                 for key, value in result.metadata.items():
 
                     f.write(
-                        f"{key:15} : {value}\n"
+                        f"{key:20} : {value}\n"
                     )
 
                 f.write("\n")
