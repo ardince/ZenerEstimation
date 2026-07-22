@@ -164,16 +164,28 @@ experiment = Experiment(
 )
 
 # ============================================================
+# Register Experiment
+# ============================================================
+
+registry = ExperimentRegistry()
+
+experiment = registry.register(experiment)
+
+Console.success(
+    f"Experiment #{experiment.id} registered."
+)
+
+# ============================================================
 # Save Metadata
 # ============================================================
 
 metadata_json = {
 
+    "experiment": experiment.to_dict(),
+
     "dataset": summary,
 
     "forecast": result.summary(),
-
-    "experiment": experiment.to_dict(),
 
 }
 
@@ -196,18 +208,6 @@ ReportWriter.save(
 
     experiment=experiment,
 
-)
-
-# ============================================================
-# Register Experiment
-# ============================================================
-
-registry = ExperimentRegistry()
-
-experiment = registry.register(experiment)
-
-Console.success(
-    f"Experiment #{experiment.id} registered."
 )
 
 # ============================================================
