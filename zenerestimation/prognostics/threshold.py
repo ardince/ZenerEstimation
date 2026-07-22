@@ -15,6 +15,9 @@ class ThresholdEstimator:
     Utility class for estimating failure thresholds.
     """
 
+    DEFAULT_PERCENTILE = 99
+    DEFAULT_MARGIN = 5.0
+
     @staticmethod
     def fixed(value: float) -> float:
         """

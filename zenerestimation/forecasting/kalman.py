@@ -8,6 +8,11 @@ from zenerestimation.forecasting import (
     ForecastResult,
 )
 
+from zenerestimation.prognostics import (
+    MonteCarloRUL,
+    RULAnalyzer,
+)
+
 
 class KalmanForecaster(BaseForecastModel):
     """
@@ -305,6 +310,54 @@ class KalmanForecaster(BaseForecastModel):
 
         )
 
+
+    def rul(
+        self,
+        threshold=None,
+        simulations=3000,
+    ):
+        """
+        Estimate Remaining Useful Life using Monte Carlo simulation.
+        """
+
+        if self.dataset is None:
+            raise RuntimeError(
+            "Model must be fitted before calling rul()."
+        )
+
+        analyzer = RULAnalyzer(
+
+            simulator=MonteCarloRUL(
+
+                simulations=simulations,
+
+            )
+
+        )
+
+        return analyzer.analyze(
+
+            current_value=float(self.last_state[0] + self.bias),
+
+            current_drift=float(self.last_state[1]),
+
+            sigma=float(self.sigma),
+
+            values=self.dataset.target,
+
+            threshold=threshold,
+
+            model="Kalman",
+
+            metadata={
+
+                "adaptive": self.adaptive,
+
+                "dt": self.dt,
+
+            },
+
+    )
     # ---------------------------------------------------------
     # Convenience method
     # ---------------------------------------------------------
@@ -314,3 +367,4 @@ class KalmanForecaster(BaseForecastModel):
         self.fit(dataset)
 
         return self.predict(steps)
+    

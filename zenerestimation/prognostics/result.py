@@ -53,26 +53,62 @@ class PrognosticResult:
     # Serialization
     # -----------------------------------------------------
 
-    def summary(self) -> dict:
+    def summary(self):
 
         return {
 
             "model": self.model,
 
-            "threshold": float(self.threshold),
+            "threshold": self.threshold,
 
-            "mean": float(self.mean),
+            "mean": self.mean,
 
-            "median": float(self.median),
+            "median": self.median,
 
-            "p10": float(self.p10),
+            "p10": self.p10,
 
-            "p90": float(self.p90),
+            "p90": self.p90,
 
-            "sample_count": self.sample_count,
+            "minimum": float(self.samples.min()),
 
-            "spread": float(self.spread),
+            "maximum": float(self.samples.max()),
+
+            "simulations": len(self.samples),
+
+            **self.metadata,
+
+        }
+    
+
+    def to_dict(self):
+
+        return {
+
+            "model": self.model,
+
+            "threshold": self.threshold,
+
+            "mean": self.mean,
+
+            "median": self.median,
+
+            "p10": self.p10,
+
+            "p90": self.p90,
+
+            "samples": self.samples.tolist(),
 
             "metadata": self.metadata,
 
         }
+    
+
+    def __str__(self):
+
+        return (
+            f"PrognosticResult("
+            f"mean={self.mean:.2f} years, "
+            f"median={self.median:.2f}, "
+            f"P10={self.p10:.2f}, "
+            f"P90={self.p90:.2f})"
+        )
