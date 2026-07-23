@@ -1,214 +1,292 @@
 # ZenerEstimation Architecture
 
-**Version:** 0.5.0
+**Document** : ARCHITECTURE.md  
+**Framework Version** : 0.7.0  
+**Document Version** : 0.7.0  
+**Status** : Active  
+**Last Updated** : July 2026
 
 ---
 
-# 1. System Overview
+# 1. Project Status
 
-ZenerEstimation is a modular Python framework for battery voltage analysis,
-forecasting and Remaining Useful Life (RUL) estimation.
+ZenerEstimation is an open-source Python framework for battery
+voltage forecasting and Remaining Useful Life (RUL) estimation.
 
-The framework is designed around a common forecasting interface, allowing
-different algorithms (ARIMA, Kalman, ETS, LSTM, GRU, etc.) to be added
-without changing the surrounding infrastructure.
+Current implementation includes both forecasting and prognostics
+under a common modular architecture.
+
+## Current Status
+
+| Item | Status |
+|------|:------:|
+| Framework Version | **0.7.0** |
+| Development Stage | Active |
+| Forecasting Models | ARIMA, Adaptive Kalman |
+| Prognostics | Threshold + Monte Carlo RUL |
+| Unit Tests | **62 Passing** |
 
 ---
 
-# 2. Package Structure
+# 2. Project Vision
+
+The primary objective of ZenerEstimation is to provide a modular,
+extensible and reproducible framework for battery voltage prediction
+and prognostics.
+
+The framework has been designed so that new forecasting algorithms,
+visualization tools and prognostic models can be integrated without
+modifying the existing architecture.
+
+---
+
+# 3. Overall Architecture
+
+                          ZenerEstimation
+
+                                 │
+                                 ▼
+                        Smart Dataset Loader
+                                 │
+                ┌────────────────┴────────────────┐
+                │                                 │
+                ▼                                 ▼
+          Forecasting Layer                Prognostics Layer
+                │                                 │
+     ┌──────────┼──────────┐            ┌─────────┼─────────┐
+     │          │          │            │         │         │
+   ARIMA      Kalman      LSTM        Threshold MonteCarlo RUL
+     ✓          ✓          □             ✓         ✓        ✓
+                │                                 │
+                └──────────────┬──────────────────┘
+                               ▼
+                         Visualization
+                               │
+               Forecast Plot • Reports • Metadata
+                               │
+                               ▼
+                      Experiment Registry
+
+Legend
+
+✓ Implemented
+
+▶ Next Sprint
+
+⏳ Planned
+
+○ Long-Term Vision
+
+---
+
+# 4. Layered Architecture
+
+## Data Layer
+
+Responsible for
+
+- Smart dataset loading
+- Validation
+- Missing period reconstruction
+- Frequency detection
+- Standardized BatteryDataset objects
+
+Purpose
+
+Every forecasting algorithm receives identical prepared datasets.
+
+---
+
+## Forecasting Layer
+
+Current
+
+- ARIMAForecaster
+- KalmanForecaster
+
+Future
+
+- LSTMForecaster
+- GRUForecaster
+- HybridForecaster
+
+Purpose
+
+Every forecasting algorithm returns a common ForecastResult.
+
+---
+
+## Prognostics Layer
+
+Current
+
+- ThresholdEstimator
+- MonteCarloRUL
+- RULAnalyzer
+- PrognosticResult
+
+Purpose
+
+Separate Remaining Useful Life estimation from forecasting.
+
+---
+
+## Visualization Layer
+
+Current
+
+- ForecastPlot
+
+Purpose
+
+Generate publication-quality forecast figures.
+
+---
+
+## Reporting Layer
+
+Current
+
+- ReportWriter
+- Metadata Export
+- JSON Metadata
+
+Purpose
+
+Generate reproducible experiment outputs.
+
+---
+
+## Experiment Layer
+
+Current
+
+- Experiment
+- ExperimentRegistry
+
+Purpose
+
+Track every executed experiment together with associated artifacts.
+
+---
+
+# 5. Current Module Status
+
+| Module | Status |
+|---------|:------:|
+| BatteryDataset | ✅ |
+| SmartDatasetLoader | ✅ |
+| ForecastResult | ✅ |
+| PrognosticResult | ✅ |
+| ARIMAForecaster | ✅ |
+| KalmanForecaster | ✅ |
+| ThresholdEstimator | ✅ |
+| MonteCarloRUL | ✅ |
+| RULAnalyzer | ✅ |
+| ForecastPlot | ✅ |
+| ReportWriter | ✅ |
+| ExperimentRegistry | ✅ |
+| Metadata Export | ✅ |
+| Example Programs | ✅ |
+| Unit Tests (62) | ✅ |
+
+---
+
+# 6. Sprint Roadmap
+
+| Sprint | Theme | Status |
+|---------|----------------------------|:------:|
+| Sprint 1 | Project Foundation | ✅ |
+| Sprint 2 | Dataset Infrastructure | ✅ |
+| Sprint 3 | Forecast Framework | ✅ |
+| Sprint 4 | Visualization | ✅ |
+| Sprint 5 | ARIMA Integration | ✅ |
+| Sprint 6 | Adaptive Kalman | ✅ |
+| Sprint 7 | Prognostics Framework | ✅ |
+| Sprint 8 | Documentation & Visualization | ▶ |
+| Sprint 9 | Deep Learning Integration | ⏳ |
+| Sprint 10 | Stable Framework | ○ |
+
+---
+
+# 7. Framework Maturity
+
+| Version | Major Milestone | Status |
+|----------|-------------------------------|:------:|
+| v0.1 | Initial Prototype | ✅ |
+| v0.2 | Dataset Infrastructure | ✅ |
+| v0.3 | Forecast Framework | ✅ |
+| v0.4 | Visualization Layer | ✅ |
+| v0.5 | ARIMA Forecasting | ✅ |
+| v0.6 | Adaptive Kalman Forecasting | ✅ |
+| **v0.7** | **Generic Prognostics Framework** | ✅ |
+| v0.8 | Documentation & Visualization | ▶ |
+| v0.9 | Deep Learning Models | ⏳ |
+| v1.0 | Stable Extensible Framework | ○ |
+
+---
+
+# 8. Design Principles
+
+The architecture follows several core principles.
+
+- Modular components
+- Separation of concerns
+- Model-independent interfaces
+- Reproducible experiments
+- Extensible architecture
+- Test-driven development
+- Human-readable reports
+
+Forecasting and prognostics are intentionally separated so that
+any forecasting model can later provide Remaining Useful Life
+estimation without changing the surrounding framework.
+
+---
+
+# 9. Repository Layout
 
 ```
-zenerestimation/
+ZenerEstimation/
 
-├── analysis/
-├── data/
-├── features/
-├── forecasting/
-├── models/
-├── utils/
-├── visualization/
+docs/
+    ARCHITECTURE.md
+    DEVELOPMENT_HISTORY.md
+    RELEASE_NOTES.md
 
 examples/
+
 tests/
-datasets/
-results/
-```
 
-Each package has a single responsibility and can evolve independently.
+zenerestimation/
 
----
+    data/
 
-# 3. Forecast Pipeline
+    forecasting/
 
-```
-CSV Dataset
-      │
-      ▼
-SmartDatasetLoader
-      │
-      ▼
-BatteryDataset
-      │
-      ▼
-ForecastModel
- (ARIMA, Kalman, ...)
-      │
-      ▼
-ForecastResult
-      │
-      ├────────► ForecastPlot
-      │
-      ├────────► Report
-      │
-      └────────► ExperimentRegistry
-```
+    prognostics/
 
-The forecasting engine is completely separated from plotting,
-report generation and experiment management.
+    visualization/
 
----
+    reporting/
 
-# 4. Core Components
-
-## SmartDatasetLoader
-
-Automatically detects supported dataset formats and converts them into
-a unified internal representation.
-
----
-
-## BatteryDataset
-
-Provides
-
-- validation
-- cleaning
-- frequency detection
-- missing period detection
-- statistical summary
-
----
-
-## BaseForecastModel
-
-Defines the common interface implemented by every forecasting algorithm.
-
-```
-fit()
-
-predict()
-
-fit_predict()
+    experiments/
 ```
 
 ---
 
-## ForecastResult
+# Related Documentation
 
-Stores
-
-- forecast values
-- forecast dates
-- model metadata
-
-Returned by every forecasting model.
+| Document | Purpose |
+|----------|---------|
+| ARCHITECTURE.md | Current system architecture |
+| DEVELOPMENT_HISTORY.md | Evolution of the framework |
+| RELEASE_NOTES.md | Version-by-version changes |
 
 ---
 
-## ForecastPlot
-
-Produces consistent visualizations independent of the forecasting model.
-
----
-
-## Experiment
-
-Stores experiment metadata such as
-
-- battery
-- model
-- execution time
-- forecast horizon
-
----
-
-## ExperimentRegistry
-
-Keeps a persistent history of executed experiments.
-
----
-
-# 5. Extension Points
-
-Adding a new forecasting algorithm only requires implementing
-`BaseForecastModel`.
-
-Example:
-
-```
-BaseForecastModel
-        │
-        ├── ARIMAForecaster
-        ├── KalmanForecaster
-        ├── ETSForecaster
-        ├── LSTMForecaster
-        └── HybridForecaster
-```
-
-No changes are required in
-
-- plotting
-- reporting
-- experiment registry
-- demonstrations
-
-because every model returns the same `ForecastResult`.
-
----
-
-# Current Implementation Status
-
-## Infrastructure
-
-✓ Dataset loading
-
-✓ Dataset validation
-
-✓ Missing data detection
-
-✓ Feature extraction
-
-✓ Forecast pipeline
-
-✓ Experiment registry
-
-✓ Forecast visualization
-
-✓ Reporting
-
----
-
-## Forecasting
-
-✓ ARIMA
-
-Planned
-
-- Adaptive Kalman
-- ETS
-- Bayesian LSTM
-- GRU–LSTM Hybrid
-
----
-
-# Design Philosophy
-
-The framework follows four principles:
-
-1. Single Responsibility
-2. Modularity
-3. Extensibility
-4. Reproducibility
-
-Every forecasting algorithm should be interchangeable while sharing
-the same workflow for visualization, reporting and experimentation.
+> ZenerEstimation is designed as a modular forecasting and
+> prognostics framework in which forecasting algorithms,
+> Remaining Useful Life estimation, visualization,
+> reporting and experiment management remain independent,
+> reusable and interoperable components.
