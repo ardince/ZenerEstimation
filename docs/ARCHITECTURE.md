@@ -42,6 +42,99 @@ modifying the existing architecture.
 
 # 3. Overall Architecture
 
+```mermaid
+flowchart TD
+
+    A["📂 Smart Dataset Loader"]
+
+    A --> F
+    A --> P
+
+    %% =====================================================
+    %% Forecasting
+    %% =====================================================
+
+    subgraph F["Forecasting Layer"]
+
+        AR["✅ ARIMA"]
+
+        KF["✅ Adaptive Kalman"]
+
+        LSTM["⏳ LSTM"]
+
+        GRU["⏳ GRU"]
+
+        HY["⏳ Hybrid Models"]
+
+    end
+
+    %% =====================================================
+    %% Prognostics
+    %% =====================================================
+
+    subgraph P["Prognostics Layer"]
+
+        TH["✅ Threshold Estimator"]
+
+        MC["✅ Monte Carlo"]
+
+        RUL["✅ RUL Analyzer"]
+
+        PR["✅ Prognostic Result"]
+
+    end
+
+    %% =====================================================
+    %% Visualization
+    %% =====================================================
+
+    V["📈 Visualization"]
+
+    FP["✅ Forecast Plot"]
+
+    RP["⏳ RUL Plot"]
+
+    DASH["⏳ Dashboard"]
+
+    %% =====================================================
+    %% Reporting
+    %% =====================================================
+
+    REP["📝 Reporting"]
+
+    RW["✅ Report Writer"]
+
+    META["✅ Metadata"]
+
+    %% =====================================================
+    %% Experiment
+    %% =====================================================
+
+    EXP["🧪 Experiment Management"]
+
+    REG["✅ Experiment Registry"]
+
+    %% Connections
+
+    F --> V
+    P --> V
+
+    V --> FP
+    V --> RP
+    V --> DASH
+
+    V --> REP
+
+    REP --> RW
+    REP --> META
+
+    REP --> EXP
+
+    EXP --> REG
+```
+
+
+
                           ZenerEstimation
 
                                  │
@@ -66,6 +159,8 @@ modifying the existing architecture.
                                │
                                ▼
                       Experiment Registry
+
+
 
 Legend
 
