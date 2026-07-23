@@ -8,6 +8,19 @@
 
 ---
 
+Related Documentation
+
+ARCHITECTURE.md
+    Describes the current framework architecture.
+
+DEVELOPMENT_HISTORY.md
+    Records the evolution of the framework through successive sprints.
+
+RELEASE_NOTES.md
+    Summarizes user-visible changes for each released version.
+
+---
+
 # 1. Project Status
 
 ZenerEstimation is an open-source Python framework for battery
