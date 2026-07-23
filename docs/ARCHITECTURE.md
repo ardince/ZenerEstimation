@@ -133,45 +133,6 @@ flowchart TD
     EXP --> REG
 ```
 
-
-
-                          ZenerEstimation
-
-                                 │
-                                 ▼
-                        Smart Dataset Loader
-                                 │
-                ┌────────────────┴────────────────┐
-                │                                 │
-                ▼                                 ▼
-          Forecasting Layer                Prognostics Layer
-                │                                 │
-     ┌──────────┼──────────┐            ┌─────────┼─────────┐
-     │          │          │            │         │         │
-   ARIMA      Kalman      LSTM        Threshold MonteCarlo RUL
-     ✓          ✓          □             ✓         ✓        ✓
-                │                                 │
-                └──────────────┬──────────────────┘
-                               ▼
-                         Visualization
-                               │
-               Forecast Plot • Reports • Metadata
-                               │
-                               ▼
-                      Experiment Registry
-
-
-
-Legend
-
-✓ Implemented
-
-▶ Next Sprint
-
-⏳ Planned
-
-○ Long-Term Vision
-
 ---
 
 # 4. Layered Architecture
