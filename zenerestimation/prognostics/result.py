@@ -49,6 +49,18 @@ class PrognosticResult:
 
         return self.p90 - self.p10
 
+    @property
+    def simulations(self):
+        return len(self.samples)
+    
+    @property
+    def minimum(self):
+        return float(np.min(self.samples))
+    
+    @property
+    def maximum(self):
+        return float(np.max(self.samples))
+
     # -----------------------------------------------------
     # Serialization
     # -----------------------------------------------------

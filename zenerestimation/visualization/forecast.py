@@ -26,6 +26,21 @@ class ForecastPlot:
         self._axes = None
 
 
+    def _build_title(self):
+
+        battery = getattr(
+                self.dataset,
+                "battery",
+                "Unknown",
+        )
+
+        return (
+            f"Battery {battery}\n"
+            f"{self.result.model} Forecast\n"
+            f"Forecast Horizon: {self.result.horizon} Quarters"
+        )
+
+
     @property
     def figure(self):
         """
@@ -107,7 +122,7 @@ class ForecastPlot:
 
         )
 
-        ax.set_title(f"{self.result.model} Forecast",)
+        ax.set_title(self._build_title())
 
         ax.set_xlabel(
             "Date"
