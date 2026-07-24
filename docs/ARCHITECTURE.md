@@ -8,16 +8,13 @@
 
 ---
 
-Related Documentation
+# Related Documentation
 
-ARCHITECTURE.md
-    Describes the current framework architecture.
-
-DEVELOPMENT_HISTORY.md
-    Records the evolution of the framework through successive sprints.
-
-RELEASE_NOTES.md
-    Summarizes user-visible changes for each released version.
+| Document | Purpose |
+|----------|---------|
+| ARCHITECTURE.md | Current system architecture |
+| DEVELOPMENT_HISTORY.md | Evolution of the framework |
+| RELEASE_NOTES.md | Version-by-version changes |
 
 ---
 
