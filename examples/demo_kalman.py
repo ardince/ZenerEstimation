@@ -37,7 +37,7 @@ from zenerestimation.utils.console import Console
 FRAMEWORK_VERSION = "0.6.0"
 
 DATASET = Path(
-    "datasets/raw/732B-5610110.csv"
+    "datasets/raw/732B-5610410.csv"
 )
 
 FORECAST_HORIZON = 6

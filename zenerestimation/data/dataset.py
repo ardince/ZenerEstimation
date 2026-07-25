@@ -50,8 +50,10 @@ class BatteryDataset:
 
     REQUIRED_COLUMNS = ["ds", "microVolt"]
 
-    def __init__(self, dataframe: pd.DataFrame):
-        self.data = dataframe.copy()
+
+    # ---------------------------------------------------------
+    # Constructors
+    # ---------------------------------------------------------
 
     def __init__(self, dataframe):
 
@@ -59,9 +61,9 @@ class BatteryDataset:
 
         self.metadata = {}
 
-    # ---------------------------------------------------------
-    # Constructors
-    # ---------------------------------------------------------
+        self._battery = "Unknown"
+
+    
 
     @classmethod
     def from_csv(cls, filename):
@@ -77,16 +79,17 @@ class BatteryDataset:
 
         dataset.metadata = metadata
 
+        dataset._battery = metadata.get(
+            "battery_id",
+            Path(filename).stem,
+        )
+
         return dataset
 
-        #path = Path(filename)
 
-        #if not path.exists():
-         #   raise FileNotFoundError(path)
-
-        #df = pd.read_csv(path)
-
-        #return cls(df)
+    @property 
+    def last_date(self):
+        return self.data["ds"].iloc[-1]
 
     
     def clean(self):
@@ -192,6 +195,19 @@ class BatteryDataset:
         Return the forecasting target series.
         """
         return self.data["microVolt"]
+
+
+    # ---------------------------------------------------------
+    # Battery identifier
+    # ---------------------------------------------------------
+
+    @property
+    def battery(self):
+        """
+        Return the battery identifier.
+        """
+
+        return self._battery
 
     # ---------------------------------------------------------
     # Validation
@@ -563,6 +579,48 @@ class BatteryDataset:
         slope = np.polyfit(x, y, 1)[0]
 
         return float(slope)
+
+
+    # ---------------------------------------------------------
+    # Forecast dates
+    # ---------------------------------------------------------
+
+    def forecast_dates(
+        self,
+        steps,
+    ):
+        """
+        Generate future timestamps.
+
+        Parameters
+        ----------
+        steps : int
+        Number of future periods.
+
+        Returns
+        -------
+        pandas.DatetimeIndex
+        """
+
+        last_date = self.data["ds"].iloc[-1]
+
+        freq = pd.infer_freq(
+        self.data["ds"]
+        )
+
+        if freq is None:
+
+            freq = "QS-JAN"
+
+        return pd.date_range(
+
+            start=last_date,
+
+            periods=steps + 1,
+
+            freq=freq,
+
+        )[1:]
 
     # ---------------------------------------------------------
     # Representation

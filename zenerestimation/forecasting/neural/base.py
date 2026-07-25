@@ -12,6 +12,11 @@ from zenerestimation.forecasting import ForecastResult
 from .windows import WindowGenerator
 from .scaler import SequenceScaler
 
+from .utils import (
+    tensorflow_version,
+    keras_version,
+)
+
 
 class BaseNeuralForecaster:
     """
@@ -120,4 +125,11 @@ class BaseNeuralForecaster:
 
             "model": self.__class__.__name__,
 
-            "dataset": self.dataset.name if self.dataset else None,}
+            "framework": {
+
+                "tensorflow": tensorflow_version(),
+
+                "keras": keras_version(),
+            },
+
+        }
