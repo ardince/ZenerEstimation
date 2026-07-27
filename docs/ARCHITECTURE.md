@@ -288,7 +288,7 @@ Track every executed experiment together with associated artifacts.
 | **v0.7** | **Generic Prognostics Framework** | ✅ |
 | v0.8 | Documentation & Visualization | ▶ |
 | v0.9 | Deep Learning Models | ⏳ |
-| v1.0 | Stable Extensible Framework | ○ |
+| v1.0 | Stable Extensible Framework: Dashboard & Reporting | ○ |
 
 ---
 
