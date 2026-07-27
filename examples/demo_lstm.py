@@ -90,11 +90,11 @@ Console.section("Training LSTM Model")
 
 model = LSTMForecaster(
 
-    window=6,
+    window=10,
 
-    units=32,
+    units=24,
 
-    epochs=100,
+    epochs=200,
 
 )
 
