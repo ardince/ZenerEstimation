@@ -236,110 +236,201 @@ Track every executed experiment together with associated artifacts.
 
 ---
 
-# 5. Current Module Status
+## 5. Architectural Principles
 
-| Module | Status |
-|---------|:------:|
-| BatteryDataset | ✅ |
-| SmartDatasetLoader | ✅ |
-| ForecastResult | ✅ |
-| PrognosticResult | ✅ |
-| ARIMAForecaster | ✅ |
-| KalmanForecaster | ✅ |
-| ThresholdEstimator | ✅ |
-| MonteCarloRUL | ✅ |
-| RULAnalyzer | ✅ |
-| ForecastPlot | ✅ |
-| ReportWriter | ✅ |
-| ExperimentRegistry | ✅ |
-| Metadata Export | ✅ |
-| Example Programs | ✅ |
-| Unit Tests (62) | ✅ |
+ZenerEstimation follows a layered architecture that separates
+forecasting algorithms from preprocessing, evaluation and reporting.
 
----
+The framework is built around the following principles:
 
-# 6. Sprint Roadmap
+1. Every forecasting model exposes the same public API.
+   (`fit()`, `predict()`, `ForecastResult`)
 
-| Sprint | Theme | Status |
-|---------|----------------------------|:------:|
-| Sprint 1 | Project Foundation | ✅ |
-| Sprint 2 | Dataset Infrastructure | ✅ |
-| Sprint 3 | Forecast Framework | ✅ |
-| Sprint 4 | Visualization | ✅ |
-| Sprint 5 | ARIMA Integration | ✅ |
-| Sprint 6 | Adaptive Kalman | ✅ |
-| Sprint 7 | Prognostics Framework | ✅ |
-| Sprint 8 | Documentation & Visualization | ▶ |
-| Sprint 9 | Deep Learning Integration | ⏳ |
-| Sprint 10 | Stable Framework | ○ |
+2. Hybrid models orchestrate existing forecasting models rather
+   than reimplementing forecasting logic.
+
+3. Data preprocessing is deterministic and performed before
+   forecasting.
+
+4. Evaluation compares stored ForecastResult objects rather than
+   rerunning forecasting models.
+
+5. Hyperparameter optimization is implemented as an independent
+   subsystem and never embedded inside forecasting models.
 
 ---
 
-# 7. Framework Maturity
+## 6. Framework Layers
 
-| Version | Major Milestone | Status |
-|----------|-------------------------------|:------:|
-| v0.1 | Initial Prototype | ✅ |
-| v0.2 | Dataset Infrastructure | ✅ |
-| v0.3 | Forecast Framework | ✅ |
-| v0.4 | Visualization Layer | ✅ |
-| v0.5 | ARIMA Forecasting | ✅ |
-| v0.6 | Adaptive Kalman Forecasting | ✅ |
-| **v0.7** | **Generic Prognostics Framework** | ✅ |
-| v0.8 | Documentation & Visualization | ▶ |
-| v0.9 | Deep Learning Models | ⏳ |
-| v1.0 | Stable Extensible Framework: Dashboard & Reporting | ○ |
+```text
+Data Layer
+──────────
+BatteryDataset
+Raw Datasets
+Processed Datasets
+
+        │
+        ▼
+
+Forecasting Layer
+─────────────────
+ARIMA
+Kalman
+ETS
+LSTM
+GRU
+Hybrid
+
+        │
+        ▼
+
+Evaluation Layer
+────────────────
+ForecastResult
+ForecastComparison
+
+        │
+        ▼
+
+Reporting Layer
+───────────────
+JSON
+Markdown
+CSV
+PDF (planned)
+
+        │
+        ▼
+
+Optimization Layer
+──────────────────
+Grid Search (planned)
+Bayesian Search (planned)
 
 ---
 
-# 8. Design Principles
-
-The architecture follows several core principles.
-
-- Modular components
-- Separation of concerns
-- Model-independent interfaces
-- Reproducible experiments
-- Extensible architecture
-- Test-driven development
-- Human-readable reports
-
-Forecasting and prognostics are intentionally separated so that
-any forecasting model can later provide Remaining Useful Life
-estimation without changing the surrounding framework.
 
 ---
 
-# 9. Repository Layout
+# 7. Hybrid Forecasting Architecture *(new section)*
 
+````markdown
+## 7. Hybrid Forecasting Architecture
+
+Hybrid forecasting combines two independent forecasting models.
+
+```text
+Trend Model
+      │
+      ▼
+Residual Computation
+      │
+      ▼
+Residual Model
+      │
+      ▼
+Combined Forecast
+
+---
+
+
+---
+
+# 8. Data Processing Pipeline *(new section)*
+
+````markdown
+## 8. Data Processing Pipeline
+
+All forecasting models operate on processed datasets.
+
+```text
+Raw Dataset
+      │
+      ▼
+Validation
+      │
+      ▼
+Interpolation
+      │
+      ▼
+Processed Dataset
+      │
+      ▼
+Forecasting
+      │
+      ▼
+ForecastResult
+      │
+      ▼
+Evaluation
+      │
+      ▼
+Reports
 ```
-ZenerEstimation/
 
-docs/
-    ARCHITECTURE.md
-    DEVELOPMENT_HISTORY.md
-    RELEASE_NOTES.md
+The preprocessing stage is deterministic and therefore executed only
+once for each dataset.
 
-examples/
+Processed datasets are stored separately from raw measurements to
+ensure reproducibility.
 
-tests/
+---
 
-zenerestimation/
+## 9. Framework Roadmap
 
-    data/
+### Sprint 9
 
-    forecasting/
+- ✅ Base Neural Infrastructure
+- ✅ LSTM Forecaster
+- ✅ GRU Forecaster
+- ☐ BaseHybridForecaster
+- ☐ KalmanLSTMForecaster
+- ☐ ARIMALSTMForecaster (planned)
 
-    prognostics/
+### Sprint 10
 
-    visualization/
+- ☐ Data Preprocessing Pipeline
+- ☐ Forecast Comparison Framework
+- ☐ Reporting Framework
 
-    reporting/
+### Sprint 11
 
-    experiments/
+- ☐ Hyperparameter Optimization
+- ☐ Bayesian Search
+- ☐ Grid Search
+
+---
+
+```mermaid
+flowchart TD
+
+A["✅ Data Layer"]
+B["✅ Classical Forecasting"]
+C["✅ Neural Forecasting"]
+D["⬜ Hybrid Forecasting"]
+E["⬜ Data Preprocessing"]
+F["⬜ Forecast Comparison"]
+G["⬜ Reporting"]
+H["⬜ Hyperparameter Search"]
+
+A --> B
+B --> C
+C --> D
+D --> E
+E --> F
+F --> G
+G --> H
 ```
 
 ---
+
+### Architecture Status
+
+This document describes the planned architecture of the
+ZenerEstimation framework.
+
+Implemented components and future milestones are documented together
+to provide a stable architectural reference for future development.
 
 # Related Documentation
 
