@@ -312,14 +312,10 @@ Bayesian Search (planned)
 
 ---
 
-# 7. Hybrid Forecasting Architecture *(new section)*
-
-````markdown
 ## 7. Hybrid Forecasting Architecture
 
 Hybrid forecasting combines two independent forecasting models.
 
-```text
 Trend Model
       │
       ▼
@@ -336,14 +332,10 @@ Combined Forecast
 
 ---
 
-# 8. Data Processing Pipeline *(new section)*
-
-````markdown
 ## 8. Data Processing Pipeline
 
 All forecasting models operate on processed datasets.
 
-```text
 Raw Dataset
       │
       ▼
@@ -431,6 +423,8 @@ ZenerEstimation framework.
 
 Implemented components and future milestones are documented together
 to provide a stable architectural reference for future development.
+
+---
 
 # Related Documentation
 
