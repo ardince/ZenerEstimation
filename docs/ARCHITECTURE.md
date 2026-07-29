@@ -30,11 +30,11 @@ under a common modular architecture.
 
 | Item | Status |
 |------|:------:|
-| Framework Version | **0.7.0** |
+| Framework Version | **0.8.0** |
 | Development Stage | Active |
-| Forecasting Models | ARIMA, Adaptive Kalman |
+| Forecasting Models | ARIMA, Adaptive Kalman, LSTM, GRU |
 | Prognostics | Threshold + Monte Carlo RUL |
-| Unit Tests | **62 Passing** |
+| Unit Tests | **69 Passing** |
 
 ---
 
