@@ -9,10 +9,12 @@ from .pipeline import ForecastPipeline
 from .models import ModelRegistry
 from .base import BaseForecastModel
 from .result import ForecastResult
+from .kalman_filter import AdaptiveKalmanFilter
 
 __all__ = [
     "ForecastPipeline",
     "ModelRegistry",
     "BaseForecastModel",
     "ForecastResult",
+    "AdaptiveKalmanFilter"
 ]

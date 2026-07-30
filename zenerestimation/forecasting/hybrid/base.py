@@ -1,9 +1,5 @@
 """
 Base infrastructure for hybrid forecasting models.
-
-Hybrid forecasters combine a trend model with a residual model
-while exposing the same public API as every forecasting model
-inside ZenerEstimation.
 """
 
 from __future__ import annotations
@@ -20,11 +16,9 @@ class BaseHybridForecaster(ABC):
 
     def __init__(
         self,
-        trend_model,
         residual_model,
     ):
 
-        self.trend_model = trend_model
         self.residual_model = residual_model
 
         self.dataset = None
@@ -41,25 +35,20 @@ class BaseHybridForecaster(ABC):
 
     def validate_components(self):
         """
-        Validate both forecasting components.
+        Validate the residual forecasting model.
         """
 
-        for model in (
-            self.trend_model,
-            self.residual_model,
-        ):
+        if not hasattr(self.residual_model, "fit"):
+            raise TypeError(
+                f"{self.residual_model.__class__.__name__} "
+                "does not implement fit()."
+            )
 
-            if not hasattr(model, "fit"):
-                raise TypeError(
-                    f"{model.__class__.__name__} "
-                    "does not implement fit()."
-                )
-
-            if not hasattr(model, "predict"):
-                raise TypeError(
-                    f"{model.__class__.__name__} "
-                    "does not implement predict()."
-                )
+        if not hasattr(self.residual_model, "predict"):
+            raise TypeError(
+                f"{self.residual_model.__class__.__name__} "
+                "does not implement predict()."
+            )
 
     # ---------------------------------------------------------
     # Training
@@ -69,13 +58,8 @@ class BaseHybridForecaster(ABC):
         self,
         dataset,
     ):
-        """
-        Train the hybrid model.
-        """
 
         self.dataset = dataset
-
-        self.trend_model.fit(dataset)
 
         residual_dataset = self.prepare_residuals(dataset)
 
@@ -91,13 +75,12 @@ class BaseHybridForecaster(ABC):
         self,
         steps,
     ):
-        """
-        Produce a hybrid forecast.
-        """
 
-        self.trend_result = self.trend_model.predict(steps)
+        self.trend_result = self.forecast_trend(steps)
 
-        self.residual_result = self.residual_model.predict(steps)
+        self.residual_result = self.residual_model.predict(
+            steps
+        )
 
         self.combined_result = self.combine_forecasts(
             self.trend_result,
@@ -106,8 +89,6 @@ class BaseHybridForecaster(ABC):
 
         return self.combined_result
 
-    # ---------------------------------------------------------
-    # Convenience
     # ---------------------------------------------------------
 
     def fit_predict(
@@ -121,8 +102,6 @@ class BaseHybridForecaster(ABC):
         return self.predict(steps)
 
     # ---------------------------------------------------------
-    # Summary
-    # ---------------------------------------------------------
 
     def summary(self):
 
@@ -130,13 +109,11 @@ class BaseHybridForecaster(ABC):
 
             "family": "Hybrid",
 
-            "trend_model":
-                self.trend_model.__class__.__name__,
-
             "residual_model":
                 self.residual_model.__class__.__name__,
 
             **self.summary_metadata(),
+
         }
 
     # ---------------------------------------------------------
@@ -153,13 +130,22 @@ class BaseHybridForecaster(ABC):
         """
 
     @abstractmethod
+    def forecast_trend(
+        self,
+        steps,
+    ) -> ForecastResult:
+        """
+        Forecast or extrapolate the trend component.
+        """
+
+    @abstractmethod
     def combine_forecasts(
         self,
         trend_result: ForecastResult,
         residual_result: ForecastResult,
     ):
         """
-        Combine both forecasting results.
+        Combine trend and residual forecasts.
         """
 
     @abstractmethod
