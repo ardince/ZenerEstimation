@@ -3,18 +3,22 @@ Kalman + LSTM hybrid forecaster.
 """
 
 from __future__ import annotations
-#from curses import window
+from importlib.metadata import metadata
+
+from matplotlib import dates
+
+from zenerestimation.forecasting import ForecastResult
+
+import pandas as pd
+
 
 from zenerestimation.data.dataset import BatteryDataset
+from zenerestimation.forecasting.hybrid import trend
 from zenerestimation.forecasting.neural.lstm import LSTMForecaster
 
 from zenerestimation.forecasting import AdaptiveKalmanFilter
 
 from .base import BaseHybridForecaster
-
-#import pytest
-
-#@pytest.mark.skip(reason="KalmanLSTMForecaster not implemented yet")
 
 
 class KalmanLSTMForecaster(BaseHybridForecaster):
@@ -99,7 +103,37 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         self,
         steps,
     ):
-        raise NotImplementedError
+        """
+        Forecast the trend component using
+        the Adaptive Kalman Filter.
+        """
+
+        trend = self.filter.forecast(steps)
+
+        dates = self.dataset.forecast_dates(steps)
+
+        return ForecastResult(
+
+            model="AdaptiveKalmanFilter",
+
+            forecast=pd.Series(
+                trend,
+                index=dates,
+            ),
+
+            horizon=steps,
+
+            dates=dates,
+
+            metadata={
+
+                "component": "trend",
+
+                "filter": "AdaptiveKalmanFilter",
+
+            },
+
+        )
 
 
     def combine_forecasts(
@@ -108,7 +142,38 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         residual_result,
     ):
 
-        raise NotImplementedError
+        forecast = (
+            trend_result.forecast
+            + residual_result.forecast
+
+        )
+
+        metadata = dict(residual_result.metadata)
+
+        metadata.update({
+
+            "architecture": "KalmanLSTM",
+
+            "trend": "Adaptive Kalman Filter",
+
+            "residual": "LSTM",
+
+        })
+
+        return ForecastResult(
+
+            model="KalmanLSTM",
+
+            forecast=forecast,
+
+            horizon=trend_result.horizon,
+
+            dates=trend_result.dates,
+
+            metadata=metadata,
+
+        )
+    
 
     def summary_metadata(self):
 

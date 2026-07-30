@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from zenerestimation.visualization import forecast
+
 #from zenerestimation.data import dataset
 
 
@@ -318,16 +320,24 @@ class AdaptiveKalmanFilter:
 
             innovations.append(innovation)
 
-            self.states[i] = self.x
+            self.states[i] = self.x.copy()
 
         self.innovations = np.asarray(
             innovations,
             dtype=float,
         )
 
+        # ---------------------------------------------------------
+        # Store final Kalman state
+        # ---------------------------------------------------------
+
         self._compute_bias()
 
         self._compute_sigma()
+
+        self.state = self.x.copy()
+
+        self.covariance = self.P.copy()
 
         return self
 
@@ -474,3 +484,36 @@ class AdaptiveKalmanFilter:
             )
 
         )
+
+
+    def forecast(
+        self,
+        steps,
+    ):
+        """
+        Forecast future trend using
+        the last estimated Kalman state.
+        """
+
+        if not hasattr(self, "state"):
+            raise RuntimeError(
+            "AdaptiveKalmanFilter must be fitted before forecasting."
+            )
+
+        state = self.state.copy()
+
+        F = np.array([
+        [1.0, self.dt],
+        [0.0, 1.0],
+        ])
+
+        forecast = []
+
+        for _ in range(steps):
+
+            state = F @ state
+
+            forecast.append(state[0])
+
+        return np.asarray(forecast)
+    

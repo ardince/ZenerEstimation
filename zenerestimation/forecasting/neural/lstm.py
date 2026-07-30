@@ -315,33 +315,13 @@ class LSTMForecaster(BaseNeuralForecaster):
 
         forecast = self.scaler.inverse_transform(
 
-            np.asarray(forecast)
+            np.asarray(forecast).reshape(-1, 1)
 
-        )
+        ).ravel()
 
         # ---------------------------------------------
         # Forecast dates
         # ---------------------------------------------
-
-        last_date = self.dataset.data["ds"].iloc[-1]
-
-        freq = pd.infer_freq(
-            self.dataset.data["ds"]
-        )
-
-        if freq is None:
-
-            freq = "QS-JAN"
-
-        dates = pd.date_range(
-
-            start=last_date,
-
-            periods=steps + 1,
-
-            freq=freq,
-
-        )[1:]
 
         dates = self.dataset.forecast_dates(steps)
 
@@ -353,7 +333,10 @@ class LSTMForecaster(BaseNeuralForecaster):
 
             model=self.MODEL_NAME,
 
-            forecast=pd.Series(forecast),
+            forecast=pd.Series(
+                np.asarray(forecast).ravel(),
+                index=dates,
+            ),
 
             fitted=self.fitted,
 
