@@ -4,7 +4,7 @@
 **Framework Version** : 0.8.1  
 **Document Version** : 0.8.1  
 **Status** : Active  
-**Last Updated** : July 2026
+**Last Updated** : August 2026
 
 ---
 
@@ -30,7 +30,7 @@ under a common modular architecture.
 
 | Item | Status |
 |------|:------:|
-| Framework Version | **0.8.0** |
+| Framework Version | **0.8.1** |
 | Development Stage | Active |
 | Forecasting Models | ARIMA, Adaptive Kalman, LSTM, GRU |
 | Prognostics | Threshold + Monte Carlo RUL |
@@ -440,25 +440,12 @@ The framework should automatically answer:
 **Status:** Planned
 
 
-Roadmap
-
-✓ Sprint 1–8
-✓ Sprint 9 — Hybrid Forecasting Framework
-
-→ Sprint 10 — Hybrid Diagnostics
-
-Future
-
-- Benchmark Framework
-- Forecast Confidence Intervals
-- Remaining Useful Life (RUL)
-
-
 ### Sprint 11
 
 - ☐ Data Preprocessing Pipeline
-- ☐ Forecast Comparison Framework
-- ☐ Reporting Framework
+- ☐ Remaining Useful Life (RUL)
+- ☐ Forecast Comparison & Reporting Framework
+
 
 ### Sprint 12
 
