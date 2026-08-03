@@ -34,7 +34,7 @@ under a common modular architecture.
 | Development Stage | Active |
 | Forecasting Models | ARIMA, Adaptive Kalman, LSTM, GRU |
 | Prognostics | Threshold + Monte Carlo RUL |
-| Unit Tests | **69 Passing** |
+| Unit Tests | **88 Passing** |
 
 ---
 
