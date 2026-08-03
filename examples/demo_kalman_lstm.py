@@ -122,25 +122,6 @@ paths = create_result_files(
 print("Battery:", dataset.battery)
 print("Metadata:", dataset.metadata)
 
-# ============================================================
-# Plot
-# ============================================================
-
-plot = ForecastPlot(
-    dataset,
-    result,
-)
-
-plot.plot(
-
-    title=f"{battery} - Kalman LSTM Forecast\n"
-          f"Forecast Horizon: {FORECAST_HORIZON} Quarters"
-)
-
-plot.save(paths.figure)
-
-Console.success("Figure saved.")
-
 
 # ============================================================
 # Finish Timing
@@ -191,6 +172,27 @@ experiment = registry.register(experiment)
 Console.success(
     f"Experiment #{experiment.id} registered."
 )
+
+
+# ============================================================
+# Plot
+# ============================================================
+
+plot = ForecastPlot(
+    dataset,
+    result,
+    experiment=experiment,
+)
+
+plot.plot(
+
+    title=f"{battery} - Kalman LSTM Forecast\n"
+          f"Forecast Horizon: {FORECAST_HORIZON} Quarters"
+)
+
+plot.save(paths.figure)
+
+Console.success("Figure saved.")
 
 
 # ============================================================

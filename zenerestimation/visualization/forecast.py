@@ -18,7 +18,9 @@ class ForecastPlot:
     self,
     dataset,
     result,
+    experiment=None,
     ):
+        self.experiment = experiment
         self.dataset = dataset
         self.result = result
 
@@ -38,6 +40,46 @@ class ForecastPlot:
             f"Battery {battery}\n"
             f"{self.result.model} Forecast\n"
             f"Forecast Horizon: {self.result.horizon} Quarters"
+        )
+
+
+    def _draw_experiment_box(self, ax):
+        """
+        Draw experiment information on the figure.
+        """
+
+        if self.experiment is None:
+            return
+
+        info = (
+            f"Experiment #{self.experiment.id}\n"
+            #f"Model      : {self.experiment.model}\n"
+            #f"Battery    : {self.experiment.battery}\n"
+            f"Version    : {self.experiment.version}\n"
+            f"Time       : {self.experiment.execution_time:.2f}s"
+        )
+
+        ax.text(
+            0.98,
+            0.02,
+            info,
+            transform=ax.transAxes,
+
+            ha="right",
+            va="bottom",
+
+            multialignment="left",   # Left-align multiline text
+
+            fontsize=9,
+            verticalalignment="bottom",
+            family="monospace",
+
+            bbox=dict(
+                facecolor="white",
+                edgecolor="gray",
+                alpha=0.75,
+                boxstyle="round,pad=0.4",
+            ),
         )
 
 
@@ -124,6 +166,8 @@ class ForecastPlot:
 
         ax.set_title(self._build_title())
 
+        self._draw_experiment_box(ax)
+
         ax.set_xlabel(
             "Date"
         )
@@ -134,7 +178,7 @@ class ForecastPlot:
 
         ax.grid(True)
 
-        ax.legend()
+        ax.legend(loc="upper left")
 
         return fig
     

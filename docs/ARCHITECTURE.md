@@ -1,8 +1,8 @@
 # ZenerEstimation Architecture
 
 **Document** : ARCHITECTURE.md  
-**Framework Version** : 0.7.0  
-**Document Version** : 0.7.0  
+**Framework Version** : 0.8.1  
+**Document Version** : 0.8.1  
 **Status** : Active  
 **Last Updated** : July 2026
 
@@ -379,17 +379,93 @@ ensure reproducibility.
 - ☐ KalmanLSTMForecaster
 - ☐ ARIMALSTMForecaster (planned)
 
-### Sprint 10
+## Sprint 9 — Hybrid Forecasting Framework ✅ COMPLETED
+
+### Goals
+- Common hybrid forecasting architecture
+- BaseHybridForecaster
+- LinearTrendLSTMForecaster
+- KalmanLSTMForecaster
+- Trend forecasting
+- Forecast combination
+- Residual decomposition
+- Forecast caching
+- Hybrid demo
+- Visualization improvements
+- Experiment information overlay
+
+### Deliverables
+- Unified hybrid forecasting API
+- Professional hybrid demonstrations
+- Experiment-aware figures
+- 88+ automated tests passing
+
+**Status:** Completed
+
+
+## Sprint 10 — Hybrid Diagnostics
+
+### Objective
+
+Provide scientific diagnostics for every hybrid forecasting model.
+
+### Planned Components
+
+- HybridDiagnostics
+- ResidualDiagnostics
+- TrendDiagnostics
+- ForecastVerification
+- DiagnosticReport
+
+### Diagnostic Questions
+
+The framework should automatically answer:
+
+- How much variance is explained by the trend?
+- How much improvement comes from the residual model?
+- Are residuals approximately white noise?
+- Is the decomposition mathematically correct?
+- Is the trend stable?
+- Is the forecast physically consistent?
+- Can the forecast be trusted?
+
+### Planned Outputs
+
+- Diagnostic summary
+- JSON report
+- PDF report
+- Console report
+- Diagnostic plots
+
+**Status:** Planned
+
+
+Roadmap
+
+✓ Sprint 1–8
+✓ Sprint 9 — Hybrid Forecasting Framework
+
+→ Sprint 10 — Hybrid Diagnostics
+
+Future
+
+- Benchmark Framework
+- Forecast Confidence Intervals
+- Remaining Useful Life (RUL)
+
+
+### Sprint 11
 
 - ☐ Data Preprocessing Pipeline
 - ☐ Forecast Comparison Framework
 - ☐ Reporting Framework
 
-### Sprint 11
+### Sprint 12
 
 - ☐ Hyperparameter Optimization
 - ☐ Bayesian Search
 - ☐ Grid Search
+- ☐ AutoML
 
 ---
 
@@ -423,6 +499,8 @@ ZenerEstimation framework.
 
 Implemented components and future milestones are documented together
 to provide a stable architectural reference for future development.
+
+The long-term goal is not only to generate forecasts, but also to provide quantitative evidence explaining why a forecast should be considered trustworthy.
 
 ---
 

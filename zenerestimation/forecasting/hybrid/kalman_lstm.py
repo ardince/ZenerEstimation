@@ -5,15 +5,13 @@ Kalman + LSTM hybrid forecaster.
 from __future__ import annotations
 from importlib.metadata import metadata
 
-from matplotlib import dates
-
 from zenerestimation.forecasting import ForecastResult
 
 import pandas as pd
-
+import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.forecasting.hybrid import trend
+
 from zenerestimation.forecasting.neural.lstm import LSTMForecaster
 
 from zenerestimation.forecasting import AdaptiveKalmanFilter
@@ -59,9 +57,16 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
         self.window = window
 
-        self.trend = None
+        # Step 1: Add internal attributes to store the trend and residuals
+        self._trend = None
+        self._residual = None
+        self._residual_dataset = None
 
-        self.residual = None
+        self._trend_forecast = None
+
+        self._trend_prediction = None
+        self._residual_prediction = None
+        self._hybrid_prediction = None
 
 
     # ---------------------------------------------------------
@@ -76,27 +81,50 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         residual = measurement − Kalman trend
         """
 
+        # Step 2: Rewrite the dataset with residuals
         self.filter.fit(dataset)
 
-        self.trend = self.filter.smooth()
+        self.dataset = dataset
+
+        self._trend = self.filter.smooth()
 
         values = dataset.target.to_numpy(dtype=float)
 
-        residual = values - self.trend
+        residual = values - self._trend
 
-        self.residual = residual
+        self._residual = residual
 
+        # Step 3: Build the residual dataset
         residual_df = dataset.data.copy()
 
         residual_df["microVolt"] = residual
 
-        residual_dataset = BatteryDataset(
-        residual_df,
+        self._residual_dataset = BatteryDataset(residual_df)
+
+        return self._residual_dataset
+
+
+    def trend(self):
+        return self._trend
+
+    def residuals(self):
+        return self._residual
+
+    def residual_dataset(self):
+        return self._residual_dataset
+
+
+    def verify_decomposition(self, atol=1e-8):
+
+        values = self.dataset.target.to_numpy(dtype=float)
+
+        reconstructed = self._trend + self._residual
+
+        return np.allclose(
+            values,
+            reconstructed,
+            atol=atol,
         )
-
-        residual_dataset.metadata = dataset.metadata.copy()
-
-        return residual_dataset
 
 
     def forecast_trend(
@@ -108,16 +136,16 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         the Adaptive Kalman Filter.
         """
 
-        trend = self.filter.forecast(steps)
-
         dates = self.dataset.forecast_dates(steps)
 
-        return ForecastResult(
+        trend_values = self.filter.forecast(steps)
+
+        result = ForecastResult(
 
             model="AdaptiveKalmanFilter",
 
             forecast=pd.Series(
-                trend,
+                trend_values,
                 index=dates,
             ),
 
@@ -135,6 +163,19 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
         )
 
+        # Cache the ForecastResult
+        self._trend_forecast = result
+
+        return result
+
+
+    def trend_forecast(self):
+        """
+        Return the cached Kalman trend forecast.
+        """
+
+        return self._trend_forecast
+
 
     def combine_forecasts(
         self,
@@ -142,29 +183,113 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         residual_result,
     ):
 
-        forecast = (
-            trend_result.forecast
-            + residual_result.forecast
+        """
+        Combine the Kalman trend forecast with the
+        LSTM residual forecast.
+
+        The hybrid forecast is
+
+            hybrid = trend + residual
+
+        Both component forecasts are cached for later
+        diagnostics and uncertainty estimation.
+        """
+
+        # ---------------------------------------------------------
+        # Extract forecast values
+        # ---------------------------------------------------------
+
+        trend_values = np.asarray(
+            trend_result.forecast.values,
+            dtype=float,
+        )
+
+        residual_values = np.asarray(
+            residual_result.forecast.values,
+            dtype=float,
+        )
+
+        # ---------------------------------------------------------
+        # Validate dimensions
+        # ---------------------------------------------------------
+
+        if len(trend_values) != len(residual_values):
+
+            raise ValueError(
+
+                "Trend and residual forecasts must "
+                "have identical forecast horizons."
+
+            )
+
+        # ---------------------------------------------------------
+        # Hybrid forecast
+        # ---------------------------------------------------------
+
+        hybrid_values = (
+
+            trend_values
+
+                +
+
+             residual_values
 
         )
 
+        # ---------------------------------------------------------
+        # Cache future predictions
+        # ---------------------------------------------------------
+
+        self._trend_prediction = trend_values.copy()
+
+        self._residual_prediction = residual_values.copy()
+
+        self._hybrid_prediction = hybrid_values.copy()
+
+        # ---------------------------------------------------------
+        # Metadata
+        # ---------------------------------------------------------
+
         metadata = dict(residual_result.metadata)
 
-        metadata.update({
+        metadata.update(
 
-            "architecture": "KalmanLSTM",
+            {
 
-            "trend": "Adaptive Kalman Filter",
+                "architecture": "KalmanLSTM",
 
-            "residual": "LSTM",
+                "trend_model": self.filter.__class__.__name__,
 
-        })
+                "residual_model": self.lstm.__class__.__name__,
+
+                "combination": "additive",
+
+                "window": self.window,
+
+            }
+
+        )
+
+        # ---------------------------------------------------------
+        # Result
+        # ---------------------------------------------------------
 
         return ForecastResult(
 
             model="KalmanLSTM",
 
-            forecast=forecast,
+            forecast=pd.Series(
+
+                hybrid_values,
+
+                index=trend_result.dates,
+
+            ),
+
+            fitted=pd.Series(
+                self._trend + self._residual,
+                index=self.dataset.data["ds"],
+            ),
 
             horizon=trend_result.horizon,
 
@@ -173,6 +298,7 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
             metadata=metadata,
 
         )
+
     
 
     def summary_metadata(self):
