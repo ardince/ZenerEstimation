@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from keras.models import Sequential
-from keras.layers import LSTM, Dense
+from keras.layers import LSTM, Dense, Input
 
 from zenerestimation.forecasting import ForecastResult
 
@@ -79,7 +79,6 @@ class LSTMForecaster(BaseNeuralForecaster):
     # ---------------------------------------------------------
     # Network architecture
     # ---------------------------------------------------------
-
     def build_model(self):
         """
         Build the baseline LSTM network.
@@ -92,18 +91,16 @@ class LSTMForecaster(BaseNeuralForecaster):
         )
 
         model.add(
+            Input(
+                shape=(self.window, 1)
+            )
+        )
+
+        model.add(
 
             LSTM(
 
                 units=self.units,
-
-                input_shape=(
-
-                    self.window,
-
-                    1,
-
-                ),
 
                 name="lstm",
 

@@ -4,6 +4,12 @@ from zenerestimation.data import BatteryDataset
 from zenerestimation.forecasting import ForecastResult
 from zenerestimation.forecasting.arima import ARIMAForecaster
 
+import warnings
+
+from statsmodels.tools.sm_exceptions import (
+    ConvergenceWarning,
+)
+
 
 def create_dataset():
 
@@ -109,6 +115,18 @@ def test_summary():
     dataset = create_dataset()
 
     model = ARIMAForecaster()
+
+    with warnings.catch_warnings():
+
+        warnings.simplefilter(
+            "ignore",
+            ConvergenceWarning,
+        )
+
+        warnings.simplefilter(
+            "ignore",
+            UserWarning,
+        )
 
     model.fit(dataset)
 

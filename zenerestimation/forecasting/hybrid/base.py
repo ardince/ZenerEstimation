@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 
 from zenerestimation.forecasting import ForecastResult
 
+from zenerestimation.diagnostics import HybridDiagnostics
+
 
 class BaseHybridForecaster(ABC):
     """
@@ -153,3 +155,18 @@ class BaseHybridForecaster(ABC):
         """
         Return model-specific metadata.
         """
+
+
+    def diagnostics(
+        self,
+        dataset=None,
+    ):
+        """
+        Run hybrid diagnostics.
+        """
+
+        if dataset is None:
+
+            dataset = self.dataset
+
+        return HybridDiagnostics(self).run(dataset)
