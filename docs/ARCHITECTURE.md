@@ -39,7 +39,7 @@ modular architecture.
 | Hybrid Diagnostics | Implemented |
 | Quality Assessment | Implemented |
 | Forecast Visualization | Implemented |
-| Experiment Management | *Implemented |
+| Experiment Management | Implemented |
 | Prognostics | Threshold + Monte Carlo RUL |
 | Result Packages | **Implemented** |
 | ResultLoader | **Implemented** |
@@ -875,23 +875,25 @@ ForecastComparison
 
 with:
 
-canonical experiment package
-sequential run numbering
-ResultLoader
-ResultPackage
-141-test checkpoint
+- Canonical experiment package
+- Sequential run numbering
+- ResultLoader
+- ResultPackage
+- 141-test checkpoint
+
 
 ## Sprint 11B — Forecast Comparison & Evaluation ✅ COMPLETED
 
 with:
 
-ForecastComparison
-ComparisonResult
-RMSE/MAE/MAPE ranking
-comparison demo
-explicit ARIMA holdout evaluation
-evaluation-aware visualization
-174 tests passing
+- ForecastComparison
+- ComparisonResult
+- RMSE/MAE/MAPE ranking
+- Comparison demo
+- Explicit ARIMA holdout evaluation
+- Evaluation-aware visualization
+- 174 tests passing
+
 
 ---
 
