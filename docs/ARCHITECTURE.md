@@ -1,8 +1,8 @@
 # ZenerEstimation Architecture
 
 **Document** : ARCHITECTURE.md  
-**Framework Version** : 0.10.0  
-**Document Version** : 0.10.0  
+**Framework Version** : 0.11.0  
+**Document Version** : 0.11.0  
 **Status** : Active  
 **Last Updated** : August 2026
 
@@ -31,17 +31,21 @@ modular architecture.
 
 | Item | Status |
 |---|:---:|
-| Framework Version | **0.10.0** |
+| Framework Version | **0.11.0** |
 | Development Stage | Active |
 | Classical Forecasting | ARIMA, Adaptive Kalman |
 | Neural Forecasting | LSTM, GRU |
 | Hybrid Forecasting | Kalman + LSTM |
-| Hybrid Diagnostics | **Implemented** |
-| Quality Assessment | **Implemented** |
-| Forecast Visualization | **Implemented** |
-| Experiment Management | **Implemented** |
+| Hybrid Diagnostics | Implemented |
+| Quality Assessment | Implemented |
+| Forecast Visualization | Implemented |
+| Experiment Management | *Implemented |
 | Prognostics | Threshold + Monte Carlo RUL |
-| Unit Tests | **115 Passing** |
+| Result Packages | **Implemented** |
+| ResultLoader | **Implemented** |
+| ForecastComparison | **Implemented** |
+| Holdout Evaluation | **Implemented** |
+| Unit Tests | **174 Passing** |
 
 ---
 
@@ -498,14 +502,15 @@ A typical experiment produces:
 
 ```text
 results/
-    <battery>/
-        <model>/
-
-            figure.png
-
-            report.txt
-
-            metadata.json
+└── <battery>/
+    └── <model>/
+        └── <timestamp>_<run_number>/
+            ├── forecast.json
+            ├── evaluation.json
+            ├── experiment.json
+            ├── forecast.png
+            ├── report.txt
+            └── experiment.log
 ```
 
 The artifacts from a single experiment remain together.
@@ -633,6 +638,36 @@ Result Layer
 ForecastResult
 PrognosticResult
 HybridDiagnosticsResult
+ResultLoader
+
+        │
+        ▼
+
+ResultPackage
+─────────────
+with responsibilities:
+
+discover stored experiments
+load one run
+filter by battery
+filter by model
+select latest run
+remain read-only
+never retrain models
+
+        │
+        ▼
+
+ForecastComparison
+──────────────────
+
+        │
+        ▼
+
+ComparisonResult
+────────────────
+Current supported metrics:
+RMSE, MAE, MAPE
 
         │
         ▼
@@ -650,8 +685,14 @@ Quality Assessment
 Visualization Layer
 ───────────────────
 ForecastPlot
+Experiment ID
+Missing Periods
+Holdout size
+RMSE
 RUL Plot (planned)
 Dashboard (planned)
+
+Note: "time/version/MAE/MAPE" values are kept in artifacts.
 
         │
         ▼
@@ -679,6 +720,24 @@ Optimization Layer
 Grid Search (planned)
 Bayesian Search (planned)
 AutoML (planned)
+
+Holdout Evaluation
+──────────────────
+Full Dataset
+    │
+    ├── Training subset
+    │       ↓
+    │   Evaluation model
+    │       ↓
+    │   Holdout forecast
+    │       ↓
+    │   RMSE / MAE / MAPE
+    │
+    └── Full dataset
+            ↓
+        Final model
+            ↓
+        Future forecast
 ```
 
 ---
@@ -812,9 +871,44 @@ ForecastComparison
 
 **Status:** Planned
 
+## Sprint 11A — Experiment Result Standardization ✅ COMPLETED
+
+with:
+
+canonical experiment package
+sequential run numbering
+ResultLoader
+ResultPackage
+141-test checkpoint
+
+## Sprint 11B — Forecast Comparison & Evaluation ✅ COMPLETED
+
+with:
+
+ForecastComparison
+ComparisonResult
+RMSE/MAE/MAPE ranking
+comparison demo
+explicit ARIMA holdout evaluation
+evaluation-aware visualization
+174 tests passing
+
 ---
 
-## Sprint 12 — Optimization & Automated Model Selection
+## Sprint 12 — Multi-Model Evaluation Standardization
+
+### Planned Components
+
+- Adaptive Kalman
+- LSTM
+- GRU
+- Kalman-LSTM
+
+**Status:** Planned
+
+---
+
+## Sprint 13 — Optimization & Automated Model Selection
 
 ### Planned Components
 

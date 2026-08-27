@@ -170,3 +170,110 @@ def test_initial_state():
     assert plot.axes is None
 
 
+def test_forecast_plot_accepts_evaluation():
+
+    dataset = create_dataset()
+
+    result = create_result()
+
+    evaluation = {
+        "evaluation_steps": 6,
+        "rmse": 0.42,
+        "mae": 0.31,
+        "mape": 1.08,
+    }
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+        evaluation=evaluation,
+    )
+
+    assert plot.evaluation == evaluation
+
+
+def test_experiment_info_contains_metrics():
+
+    dataset = create_dataset()
+
+    result = create_result()
+
+    evaluation = {
+        "evaluation_steps": 6,
+        "rmse": 0.42,
+        "mae": 0.31,
+        "mape": 1.08,
+    }
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+        evaluation=evaluation,
+    )
+
+    info = plot._build_experiment_info()
+
+    assert "Holdout: 6 quarters" in info
+    assert "RMSE: 0.4200" in info
+    assert "Missing Periods:" in info
+
+    assert "MAE" not in info
+    assert "MAPE" not in info
+
+def test_experiment_info_handles_missing_metrics():
+
+    dataset = create_dataset()
+
+    result = create_result()
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+        evaluation={
+            "rmse": None,
+            "mae": None,
+            "mape": None,
+        },
+    )
+
+    info = plot._build_experiment_info()
+
+    assert "RMSE" not in info
+    assert "MAE" not in info
+    assert "MAPE" not in info
+
+
+def test_plot_without_evaluation():
+
+    dataset = create_dataset()
+
+    result = create_result()
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+    )
+
+    figure = plot.plot()
+
+    assert figure is not None
+
+
+def test_custom_title_is_used():
+
+    dataset = create_dataset()
+    result = create_result()
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+    )
+
+    plot.plot(
+        title="Custom Forecast Title"
+    )
+
+    assert (
+        plot.axes.get_title()
+        == "Custom Forecast Title"
+    )

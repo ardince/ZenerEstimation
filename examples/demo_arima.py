@@ -2,32 +2,23 @@
 ============================================================
 
 ZenerEstimation
-Official ARIMA Demonstration
+Official ARIMA Forecast Demonstration
 
-This example demonstrates the complete workflow:
+Usage:
 
-    Smart Dataset Loader
-            ↓
-      BatteryDataset
-            ↓
-     ARIMAForecaster
-            ↓
-      ForecastResult
-            ↓
-      ForecastPlot
-            ↓
-   Save Experiment Files
-            ↓
-   Register Experiment
+    python examples/demo_arima.py \
+        --battery 732B-5610410 \
+        --horizon 6
 
 ============================================================
 """
 
 from pathlib import Path
 from time import perf_counter
+import argparse
+import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.data.smart_loader import SmartDatasetLoader
 from zenerestimation.forecasting.arima import ARIMAForecaster
 from zenerestimation.visualization.forecast import ForecastPlot
 from zenerestimation.experiment import Experiment
@@ -38,269 +29,659 @@ from zenerestimation.utils.console import Console
 from zenerestimation.utils.results import (
     create_result_files,
     save_metadata,
-    save_report,
 )
+
+from zenerestimation.utils.report_writer import ReportWriter
 
 
 # ============================================================
 # Configuration
 # ============================================================
 
-FRAMEWORK_VERSION = "0.5.0"
-
-DATASET = Path(
-    "datasets/raw/732B-5610410.csv"
-)
-
-FORECAST_HORIZON = 6
+FRAMEWORK_VERSION = "0.10.0"
 
 MODEL = "ARIMA"
 
-# ============================================================
-# Start
-# ============================================================
-
-Console.header(
-    "Official ARIMA Demonstration"
-)
-
-start = perf_counter()
 
 # ============================================================
-# Load Dataset
+# Arguments
 # ============================================================
 
-Console.section("Loading Dataset")
+def parse_args():
 
-loader = SmartDatasetLoader()
+    parser = argparse.ArgumentParser(
+        description="ZenerEstimation ARIMA demonstration"
+    )
 
-df, metadata = loader.load(DATASET)
+    parser.add_argument(
+        "--battery",
+        required=True,
+        help="Battery dataset identifier",
+    )
 
-dataset = BatteryDataset(df)
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=6,
+        help="Forecast horizon in quarters",
+    )
 
-summary = dataset.summary()
+    parser.add_argument(
+        "--evaluation-steps",
+        type=int,
+        default=6,
+        help="Number of final observations reserved for holdout evaluation.",
+    )
 
-Console.success("Dataset loaded successfully.")
+    return parser.parse_args()
 
-print()
-
-print(f"Battery           : {metadata['battery_id']}")
-print(f"Dataset Format    : {metadata['format']}")
-print(f"Measurements      : {summary['rows']}")
-print(f"Time Span         : {summary['start']:%Y-%m-%d}  →  {summary['end']:%Y-%m-%d}")
-print(f"Frequency         : {summary['frequency']}")
-print(f"Missing Periods   : {summary['missing_periods']}")
-
-print()
-
-# ============================================================
-# Forecast
-# ============================================================
-
-Console.section("Training ARIMA Model")
-
-model = ARIMAForecaster()
-
-result = model.fit_predict(
-
-    dataset,
-
-    steps=FORECAST_HORIZON,
-
-)
-
-Console.success("Forecast completed.")
 
 # ============================================================
-# Prepare Result Directory
+# Dataset
 # ============================================================
 
-battery = DATASET.stem
+def resolve_dataset(battery):
 
-paths = create_result_files(
+    path = Path(
+        f"datasets/raw/{battery}.csv"
+    )
 
-    battery=battery,
+    if not path.exists():
 
-    model="arima",
+        raise FileNotFoundError(
+            f"Dataset not found: {path}"
+        )
 
-)
-
-# ============================================================
-# Plot
-# ============================================================
-
-Console.section("Creating Forecast Plot")
-
-plot = ForecastPlot(
-
-    dataset,
-
-    result,
-
-)
-
-plot.plot(
-
-    title=f"{battery} - ARIMA Forecast"
-
-)
-
-plot.save(paths.figure)
-
-Console.success("Figure saved.")
+    return path
 
 # ============================================================
-# Finish Timing
+# RMSE, MAE, MAPE Computation
 # ============================================================
 
-elapsed = perf_counter() - start
+def compute_rmse(
+    actual,
+    predicted,
+):
+    actual = np.asarray(
+        actual,
+        dtype=float,
+    )
+
+    predicted = np.asarray(
+        predicted,
+        dtype=float,
+    )
+
+    return float(
+        np.sqrt(
+            np.mean(
+                (actual - predicted) ** 2
+            )
+        )
+    )
+
+
+def compute_mae(
+    actual,
+    predicted,
+):
+    actual = np.asarray(
+        actual,
+        dtype=float,
+    )
+
+    predicted = np.asarray(
+        predicted,
+        dtype=float,
+    )
+
+    return float(
+        np.mean(
+            np.abs(
+                actual - predicted
+            )
+        )
+    )
+
+
+def compute_mape(
+    actual,
+    predicted,
+):
+    actual = np.asarray(
+        actual,
+        dtype=float,
+    )
+
+    predicted = np.asarray(
+        predicted,
+        dtype=float,
+    )
+
+    mask = actual != 0
+
+    if not np.any(mask):
+        return None
+
+    return float(
+        np.mean(
+            np.abs(
+                (
+                    actual[mask]
+                    - predicted[mask]
+                )
+                / actual[mask]
+            )
+        )
+        * 100.0
+    )
 
 # ============================================================
-# Experiment
+# Main
 # ============================================================
 
-experiment = Experiment(
+def main():
 
-    battery=battery,
+    args = parse_args()
 
-    model=MODEL,
+    battery = args.battery
+    horizon = args.horizon
+    evaluation_steps = args.evaluation_steps
+    dataset_path = resolve_dataset(
+        battery
+    )
 
-    version=FRAMEWORK_VERSION,
+    Console.header(
+        "Official ARIMA Forecast Demonstration"
+    )
 
-    execution_time=elapsed,
-
-    horizon=FORECAST_HORIZON,
-
-    artifacts={
-
-        "figure": str(paths.figure),
-
-        "metadata": str(paths.metadata),
-
-        "report": str(paths.report),
-
-    },
-
-    metadata=result.summary(),
-
-)
-
-registry = ExperimentRegistry()
-
-experiment = registry.register(experiment)
-
-# ============================================================
-# Save Metadata
-# ============================================================
-
-save_metadata(
-
-    paths.metadata,
-
-    {
-
-        "experiment": experiment.to_dict(),
-
-        "forecast": result.summary(),
-
-        "dataset": summary,
-
-    },
-
-)
-
-# ============================================================
-# Save Report
-# ============================================================
-
-report = f"""
-ZenerEstimation Experiment Report
-=================================
-
-Experiment ID : {experiment.id}
-
-Battery       : {battery}
-
-Model         : {MODEL}
-
-Framework     : {FRAMEWORK_VERSION}
-
-Execution     : {experiment.execution_time:.2f} s
+    start = perf_counter()
 
 
-Dataset
+    # ========================================================
+    # Load Dataset
+    # ========================================================
 
--------
+    Console.section(
+        "Loading Dataset"
+    )
 
-Measurements  : {summary['rows']}
+    dataset = BatteryDataset.from_csv(
+        dataset_path
+    )
 
-Frequency     : {summary['frequency']}
+    summary = dataset.summary()
 
-Missing       : {summary['missing']}
+    Console.success(
+        "Dataset loaded successfully."
+    )
 
-Missing Qtrs  : {summary['missing_periods']}
+    print()
 
+    print(
+        f"Battery           : "
+        f"{dataset.metadata['battery_id']}"
+    )
 
-Forecast
+    print(
+        f"Measurements      : "
+        f"{summary['rows']}"
+    )
 
---------
+    print(
+        f"Time Span         : "
+        f"{summary['start']:%Y-%m-%d}"
+        f" → "
+        f"{summary['end']:%Y-%m-%d}"
+    )
 
-Horizon       : {result.horizon}
+    print(
+        f"Frequency         : "
+        f"{summary['frequency']}"
+    )
 
-First Value   : {result.first_forecast:.4f}
+    print(
+        f"Missing Periods   : "
+        f"{summary['missing_periods']}"
+    )
 
-Last Value    : {result.last_forecast:.4f}
-
-
-Metadata
-
---------
-
-{result.metadata}
-"""
-
-save_report(
-
-    paths.report,
-
-    report,
-
-)
-
-# ============================================================
-# Summary
-# ============================================================
-
-Console.success(
-    f"Experiment #{experiment.id} registered."
-)
-
-Console.section("Dataset Summary")
-
-print(f"Measurements      : {summary['rows']}")
-print(f"Columns           : {summary['columns']}")
-print(f"Missing Values    : {summary['missing']}")
-print(f"Missing Periods   : {summary['missing_periods']}")
-print(f"Time Span         : {summary['start']:%Y-%m-%d} → {summary['end']:%Y-%m-%d}")
-print(f"Frequency         : {summary['frequency']}")
-
-print()
-
-print(f"Experiment ID     : {experiment.id}")
-print(f"Battery           : {experiment.battery}")
-print(f"Model             : {experiment.model}")
-print(f"Horizon           : {experiment.horizon}")
-print(f"Execution Time    : {experiment.execution_time:.2f} s")
+    print()
 
 
-#print(result.fitted.head())
+    # ========================================================
+    # Holdout Evaluation
+    # ========================================================
 
-#print()
+    Console.section(
+        "Evaluating ARIMA Model"
+    )
 
-#print(result.forecast)
+    if evaluation_steps <= 0:
 
-# ============================================================
-# Footer
-# ============================================================
+        raise ValueError(
+            "evaluation-steps must be greater than zero."
+    )
 
-Console.footer(FRAMEWORK_VERSION)
+    if evaluation_steps >= len(dataset):
+
+        raise ValueError(
+            "evaluation-steps must be smaller "
+            "than the dataset length."
+    )
+
+
+    train_df = (
+        dataset.data
+        .iloc[:-evaluation_steps]
+        .copy()
+    )
+
+    validation_df = (
+        dataset.data
+        .iloc[-evaluation_steps:]
+        .copy()
+    )
+
+    train_dataset = BatteryDataset(
+        train_df
+    )
+
+    validation_actual = (
+        validation_df["microVolt"]
+        .to_numpy(dtype=float)
+    )
+
+
+    evaluation_model = (
+        ARIMAForecaster()
+    )
+
+    evaluation_result = (
+        evaluation_model.fit_predict(
+            train_dataset,
+            steps=evaluation_steps,
+        )
+    )
+
+    validation_prediction = (
+        np.asarray(
+            evaluation_result.forecast,
+            dtype=float,
+        )
+    )
+
+
+    rmse = compute_rmse(
+        validation_actual,
+        validation_prediction,
+    )
+
+    mae = compute_mae(
+        validation_actual,
+        validation_prediction,
+    )
+
+    mape = compute_mape(
+        validation_actual,
+        validation_prediction,
+    )
+
+
+    Console.success(
+    "Holdout evaluation completed."
+    )
+
+    print()
+
+    print(
+        f"Evaluation Steps  : "
+        f"{evaluation_steps}"
+    )
+
+    print(
+        f"RMSE              : "
+        f"{rmse:.6f}"
+    )
+
+    print(
+        f"MAE               : "
+        f"{mae:.6f}"
+    )
+
+    if mape is not None:
+
+        print(
+            f"MAPE              : "
+            f"{mape:.6f}%"
+    )
+
+    else:
+
+        print(
+            "MAPE              : N/A"
+    )
+
+    print()
+
+
+    # ========================================================
+    # Evaluation Dictionary
+    # ========================================================
+
+    evaluation = {
+
+        "status":
+        "evaluated",
+
+        "method":
+        "holdout",
+
+        "evaluation_steps":
+            evaluation_steps,
+
+        "rmse":
+            rmse,
+
+        "mae":
+            mae,
+
+        "mape":
+            mape,
+
+    }   
+
+
+    # ========================================================
+    # Forecast
+    # ========================================================
+
+    Console.section(
+        "Training ARIMA Model"
+    )
+
+    model = ARIMAForecaster()
+
+    result = model.fit_predict(
+        dataset,
+        steps=horizon,
+    )
+
+    Console.success(
+        "Forecast completed."
+    )
+
+
+    # ========================================================
+    # Result Directory
+    # ========================================================
+
+    paths = create_result_files(
+        battery=battery,
+        model="arima",
+    )
+
+
+    # ========================================================
+    # Timing
+    # ========================================================
+
+    elapsed = (
+        perf_counter() - start
+    )
+
+
+    # ========================================================
+    # Experiment
+    # ========================================================
+
+    experiment = Experiment(
+
+        battery=battery,
+
+        model=MODEL,
+
+        version=FRAMEWORK_VERSION,
+
+        execution_time=elapsed,
+
+        horizon=horizon,
+
+        artifacts={
+
+            "figure": str(paths.figure),
+
+            "forecast": str(paths.forecast),
+
+            "evaluation": str(paths.evaluation),
+
+            "experiment": str(paths.experiment),
+
+            "report": str(paths.report),
+
+            "log": str(paths.log),
+
+        },
+
+        metadata=result.summary(),
+
+    )
+
+
+    # ========================================================
+    # Register
+    # ========================================================
+
+    registry = ExperimentRegistry()
+
+    experiment = registry.register(
+        experiment
+    )
+
+    Console.success(
+        f"Experiment #{experiment.id} registered."
+    )
+
+
+    # ========================================================
+    # Save Experiment
+    # ========================================================
+
+    save_metadata(
+        paths.experiment,
+        {
+            "experiment": experiment.to_dict(),
+            "dataset": summary,
+        },
+    )
+
+
+    # ========================================================
+    # Save Forecast
+    # ========================================================
+
+    forecast_json = {
+
+        "battery": battery,
+        "model": "arima",
+        "experiment_id": experiment.id,
+        "horizon": result.horizon,
+
+        "dates": [
+            str(date)
+            for date in result.dates
+        ],
+
+        "forecast": [
+            float(value)
+            for value in result.forecast
+        ],
+
+        "metadata": result.summary(),
+
+    }
+
+    save_metadata(
+        paths.forecast,
+        forecast_json
+    )
+
+    # ========================================================
+    # Save Evaluation
+    # ========================================================
+
+    evaluation_json = {
+
+        **evaluation,
+
+        "battery":
+            battery,
+
+        "model":
+            "arima",
+
+        "experiment_id":
+            experiment.id,
+
+        "training_points":
+            len(train_dataset),
+        
+        "validation_points":
+            len(validation_actual),
+
+        "actual": [
+            float(value)
+            for value in validation_actual
+        ],
+
+        "predicted": [
+            float(value)
+            for value in validation_prediction
+        ], 
+
+        "dates": [
+            str(date)
+            for date in validation_df["ds"]
+        ],
+
+    }
+
+    # ========================================================
+    # Save Evaluation Metadata
+    # ========================================================
+
+    save_metadata(
+        paths.evaluation,
+        evaluation_json,
+    )
+
+
+    # ========================================================
+    # Save Log
+    # ========================================================
+
+    paths.log.write_text(
+        (
+            "ZenerEstimation Experiment Log\n"
+            f"Experiment ID: {experiment.id}\n"
+            f"Battery: {battery}\n"
+            f"Model: {MODEL}\n"
+            f"Horizon: {horizon}\n"
+            f"Execution Time: {elapsed:.3f} s\n"
+            "Status: completed\n"
+        ),
+        encoding="utf-8",
+    )
+
+
+    # ========================================================
+    # Plot
+    # ========================================================
+
+    Console.section(
+        "Creating Forecast Plot"
+    )
+
+    plot = ForecastPlot(
+        dataset,
+        result,
+        experiment=experiment,
+        evaluation=evaluation,
+    )
+
+    plot.plot(
+        title=(
+            f"{battery} - ARIMA Forecast"
+        )
+    )
+
+    plot.save(
+        paths.figure
+    )
+
+    Console.success(
+        "Figure saved."
+    )
+
+    # ========================================================
+    # Report
+    # ========================================================
+
+    ReportWriter.save(
+
+        filename=paths.report,
+
+        dataset=dataset,
+
+        result=result,
+
+        experiment=experiment,
+
+    )
+
+
+    # ========================================================
+    # Final Summary
+    # ========================================================
+
+    Console.section(
+        "Experiment Summary"
+    )
+
+    print(
+        f"Experiment ID     : "
+        f"{experiment.id}"
+    )
+
+    print(
+        f"Battery           : "
+        f"{battery}"
+    )
+
+    print(
+        f"Model             : "
+        f"{MODEL}"
+    )
+
+    print(
+        f"Horizon           : "
+        f"{horizon} Quarters"
+    )
+
+    print(
+        f"Execution Time    : "
+        f"{elapsed:.2f} s"
+    )
+
+    print(
+        f"Result Directory  : "
+        f"{paths.directory}"
+    )
+
+
+    Console.footer(
+        FRAMEWORK_VERSION
+    )
+
+
+if __name__ == "__main__":
+    main()
