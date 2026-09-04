@@ -1,1003 +1,1138 @@
 # ZenerEstimation Architecture
 
-**Document** : ARCHITECTURE.md  
-**Framework Version** : 0.11.0  
-**Document Version** : 0.11.0  
-**Status** : Active  
-**Last Updated** : August 2026
+## 1. Overview
+
+**ZenerEstimation** is a modular battery degradation forecasting and Remaining Useful Life (RUL) estimation framework.
+
+The project is designed around a small number of architectural principles:
+
+* deterministic and reproducible dataset preparation,
+* strict separation between structural data processing and model-specific preprocessing,
+* leakage-safe holdout evaluation,
+* standardized forecast and evaluation artifacts,
+* model-independent comparison,
+* reusable diagnostics and prognostics,
+* backward-compatible framework evolution,
+* transparent experiment tracking.
+
+The framework currently supports:
+
+* ARIMA forecasting,
+* Adaptive Kalman filtering,
+* LSTM forecasting,
+* GRU forecasting,
+* hybrid trend-residual forecasting,
+* threshold-based RUL estimation,
+* Monte Carlo RUL estimation,
+* hybrid diagnostics,
+* standardized experiment storage,
+* standardized holdout evaluation,
+* multi-model comparison infrastructure.
 
 ---
 
-# Related Documentation
+# 2. High-Level Architecture
 
-| Document | Purpose |
-|---|---|
-| ARCHITECTURE.md | Current system architecture |
-| DEVELOPMENT_HISTORY.md | Evolution of the framework |
-| RELEASE_NOTES.md | Version-by-version changes |
-
----
-
-# 1. Project Status
-
-ZenerEstimation is an open-source Python framework for battery
-voltage forecasting and Remaining Useful Life (RUL) estimation.
-
-The framework provides forecasting, hybrid modeling, diagnostics,
-visualization, reporting and experiment management under a common
-modular architecture.
-
-## Current Status
-
-| Item | Status |
-|---|:---:|
-| Framework Version | **0.11.0** |
-| Development Stage | Active |
-| Classical Forecasting | ARIMA, Adaptive Kalman |
-| Neural Forecasting | LSTM, GRU |
-| Hybrid Forecasting | Kalman + LSTM |
-| Hybrid Diagnostics | Implemented |
-| Quality Assessment | Implemented |
-| Forecast Visualization | Implemented |
-| Experiment Management | Implemented |
-| Prognostics | Threshold + Monte Carlo RUL |
-| Result Packages | **Implemented** |
-| ResultLoader | **Implemented** |
-| ForecastComparison | **Implemented** |
-| Holdout Evaluation | **Implemented** |
-| Unit Tests | **174 Passing** |
-
----
-
-# 2. Project Vision
-
-The primary objective of ZenerEstimation is to provide a modular,
-extensible and reproducible framework for battery voltage prediction
-and prognostics.
-
-The framework is designed so that new forecasting algorithms,
-hybrid models, diagnostic methods, visualization tools and prognostic
-models can be integrated without modifying unrelated components.
-
-The long-term objective is not only to generate forecasts, but also
-to provide quantitative evidence explaining the quality, consistency
-and trustworthiness of those forecasts.
-
----
-
-# 3. Overall Architecture
-
-```mermaid
-flowchart TD
-
-    A["📂 Smart Dataset Loader"]
-
-    A --> F
-    A --> P
-
-    %% =====================================================
-    %% Forecasting
-    %% =====================================================
-
-    subgraph F["Forecasting Layer"]
-
-        AR["✅ ARIMA"]
-
-        KF["✅ Adaptive Kalman"]
-
-        LSTM["✅ LSTM"]
-
-        GRU["✅ GRU"]
-
-        HY["✅ Hybrid Models"]
-
-    end
-
-    %% =====================================================
-    %% Diagnostics
-    %% =====================================================
-
-    subgraph D["🔬 Diagnostics Layer"]
-
-        HD["✅ HybridDiagnostics"]
-
-        HR["✅ HybridDiagnosticsResult"]
-
-        QA["✅ Hybrid Quality Assessment"]
-
-    end
-
-    %% =====================================================
-    %% Prognostics
-    %% =====================================================
-
-    subgraph P["Prognostics Layer"]
-
-        TH["✅ Threshold Estimator"]
-
-        MC["✅ Monte Carlo"]
-
-        RUL["✅ RUL Analyzer"]
-
-        PR["✅ Prognostic Result"]
-
-    end
-
-    %% =====================================================
-    %% Visualization
-    %% =====================================================
-
-    subgraph V["📈 Visualization Layer"]
-
-        FP["✅ ForecastPlot"]
-
-        RP["⏳ RUL Plot"]
-
-        DASH["⏳ Dashboard"]
-
-    end
-
-    %% =====================================================
-    %% Reporting
-    %% =====================================================
-
-    subgraph REP["📝 Reporting Layer"]
-
-        RW["✅ ReportWriter"]
-
-        META["✅ Metadata"]
-
-    end
-
-    %% =====================================================
-    %% Experiment
-    %% =====================================================
-
-    subgraph EXP["🧪 Experiment Management"]
-
-        E["✅ Experiment"]
-
-        REG["✅ Experiment Registry"]
-
-    end
-
-    F --> D
-    F --> V
-    F --> REP
-
-    D --> V
-    D --> REP
-
-    P --> V
-    P --> REP
-
-    REP --> EXP
-
-    EXP --> REG
+```text
+                         RAW DATA
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Raw Dataset Ingest  │
+                 │ / Schema Normalize  │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │  DatasetProcessor   │
+                 │                     │
+                 │ - date parsing      │
+                 │ - duplicate policy  │
+                 │ - frequency check   │
+                 │ - canonical grid    │
+                 │ - missing periods   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Processed Dataset   │
+                 │                     │
+                 │ ds                  │
+                 │ microVolt           │
+                 │ is_observed         │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+              BatteryDataset.from_processed_csv()
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │  BatteryDataset     │
+                 │                     │
+                 │ canonical timeline  │
+                 │ observation mask    │
+                 │ source metadata     │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ ForecastEvaluator   │
+                 │                     │
+                 │ train / holdout     │
+                 │ split               │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                TRAINING PARTITION ONLY
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Temporal / Model    │
+                 │ Preprocessing       │
+                 │                     │
+                 │ interpolation       │
+                 │ scaling             │
+                 │ windows             │
+                 │ etc.                │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+            ┌───────────────┼────────────────┐
+            │               │                │
+            ▼               ▼                ▼
+          ARIMA           Kalman         LSTM / GRU
+            │               │                │
+            └───────────────┼────────────────┘
+                            │
+                            ▼
+                    ForecastResult
+                            │
+                            ▼
+                    EvaluationResult
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+       Result Storage     Reports       ForecastPlot
+             │
+             ▼
+        ResultLoader
+             │
+             ▼
+     ForecastComparison
 ```
 
 ---
 
-# 4. Layered Architecture
+# 3. Package Structure
 
-## Data Layer
-
-Responsible for:
-
-- Smart dataset loading
-- Dataset validation
-- Missing-period reconstruction
-- Frequency detection
-- Standardized `BatteryDataset` objects
-- Deterministic preprocessing
-
-### Purpose
-
-Every forecasting algorithm receives the same standardized dataset
-representation.
-
----
-
-## Forecasting Layer
-
-Implemented forecasting models:
-
-- `ARIMAForecaster`
-- `AdaptiveKalmanFilter`
-- `LSTMForecaster`
-- `GRUForecaster`
-- `BaseHybridForecaster`
-- `KalmanLSTMForecaster`
-
-### Purpose
-
-Every forecasting model follows a common forecasting interface and
-produces a standardized `ForecastResult`.
-
-Hybrid models orchestrate existing forecasting components rather than
-reimplementing their forecasting logic.
-
----
-
-## Hybrid Forecasting Layer
-
-The hybrid architecture currently supports decomposition-based
-forecasting.
+The principal framework structure is:
 
 ```text
-                  Processed Dataset
-                         │
-                         ▼
-                  ┌──────────────┐
-                  │ Trend Model  │
-                  │    Kalman    │
-                  └──────┬───────┘
-                         │
-                         ▼
-                  Trend Component
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-             ▼                       ▼
-       Original Signal          Residual
-             │                       │
-             │                       ▼
-             │                ┌──────────────┐
-             │                │ Residual LSTM│
-             │                └──────┬───────┘
-             │                       │
-             │                       ▼
-             │                Residual Forecast
-             │                       │
-             └───────────┬───────────┘
-                         ▼
-                 Combined Forecast
-                         │
-                         ▼
-                  ForecastResult
+zenerestimation/
+│
+├── data/
+│   ├── dataset.py
+│   │
+│   └── processing/
+│       ├── __init__.py
+│       ├── processor.py
+│       ├── result.py
+│       └── writer.py
+│
+├── evaluation/
+│   ├── __init__.py
+│   ├── evaluator.py
+│   └── result.py
+│
+├── models/
+│   ├── arima/
+│   ├── kalman/
+│   ├── lstm/
+│   ├── gru/
+│   └── hybrid/
+│
+├── diagnostics/
+│   └── hybrid.py
+│
+├── prognostics/
+│   └── ...
+│
+├── comparison/
+│   ├── __init__.py
+│   ├── comparison.py
+│   └── result.py
+│
+├── reporting/
+│   └── ...
+│
+├── visualization/
+│   └── ...
+│
+└── utils/
+    ├── results.py
+    └── result_loader.py
 ```
 
-The decomposition follows:
+Example scripts are located under:
 
 ```text
-Signal = Trend + Residual
+examples/
 ```
 
-The trend and residual components are retained by the hybrid model
-for subsequent diagnostics.
+including dataset processing, model demonstrations, forecast comparison, and processed-loader validation.
 
 ---
 
-# 5. Diagnostics Layer
+# 4. Data Architecture
 
-The diagnostics layer was introduced during **Sprint 10**.
+## 4.1 Raw datasets
 
-Its purpose is to analyze previously calculated forecasting results
-without rerunning the forecasting models.
-
-## Implemented Components
-
-- `HybridDiagnostics`
-- `HybridDiagnosticsResult`
-- Hybrid decomposition verification
-- Trend variance analysis
-- Residual variance analysis
-- Variance explained
-- Residual mean
-- Residual standard deviation
-- Residual RMSE
-- Lag-1 residual autocorrelation
-- Durbin-Watson statistic
-- Ljung-Box test
-- Hybrid quality assessment
-- Quality score
-- Quality grade
-- Diagnostic recommendations
-
----
-
-## HybridDiagnostics
-
-`HybridDiagnostics` analyzes the internal decomposition produced by a
-hybrid forecasting model.
-
-The main diagnostic relationship is:
+Raw source files are stored under:
 
 ```text
-Trend + Residual = Original Signal
+datasets/raw/
 ```
 
-The decomposition is explicitly verified before higher-level quality
-assessment is performed.
+Raw datasets may use different source schemas.
 
-### Diagnostic outputs
-
-The diagnostics layer evaluates:
-
-| Diagnostic | Purpose |
-|---|---|
-| Decomposition verification | Confirms mathematical reconstruction |
-| Trend variance | Measures variation represented by the trend |
-| Residual variance | Measures unexplained variation |
-| Variance explained | Measures how much signal variation is captured by the trend |
-| Residual mean | Detects systematic residual bias |
-| Residual standard deviation | Measures residual dispersion |
-| Residual RMSE | Measures residual magnitude |
-| Lag-1 autocorrelation | Detects short-term residual dependence |
-| Durbin-Watson | Tests residual serial correlation |
-| Ljung-Box | Tests residual whiteness |
-
----
-
-# 6. Hybrid Quality Assessment
-
-Hybrid quality assessment provides a compact interpretation of the
-diagnostic results.
-
-The objective is not to replace forecasting accuracy metrics, but to
-answer whether the hybrid decomposition behaves consistently and
-whether the residual model appears to have removed meaningful temporal
-structure.
-
-The assessment produces:
+Examples include:
 
 ```text
-Diagnostic Metrics
-        │
-        ▼
-Quality Assessment
-        │
-        ├── Quality Score
-        ├── Quality Grade
-        └── Recommendations
+ds, microVolt
 ```
 
-The quality assessment considers the diagnostic evidence rather than
-simply returning a numerical forecast error.
-
-Typical recommendations may address:
-
-- insufficient trend representation,
-- excessive residual structure,
-- residual autocorrelation,
-- decomposition inconsistency,
-- unstable hybrid behavior.
-
----
-
-# 7. HybridDiagnosticsResult
-
-`HybridDiagnosticsResult` provides a stable result object for
-diagnostic consumers.
-
-It separates diagnostic computation from presentation.
-
-The result can be consumed by:
-
-- Console output
-- Reports
-- JSON metadata
-- Visualization
-- Future dashboards
-- Experiment comparison tools
-
-Conceptually:
+or:
 
 ```text
-HybridDiagnostics
-        │
-        ▼
-HybridDiagnosticsResult
-        │
-        ├── summary()
-        ├── to_dict()
-        ├── quality score
-        ├── quality grade
-        └── recommendations
+Month, Year, microVolt
 ```
 
-This follows the same architectural principle used by
-`ForecastResult` and `PrognosticResult`.
+Raw schema normalization occurs at the ingestion boundary.
 
----
-
-# 8. Visualization Layer
-
-## Implemented
-
-- `ForecastPlot`
-
-`ForecastPlot` displays:
-
-- Historical measurements
-- Model fitted values, when available
-- Forecast values
-- Forecast boundary
-- Experiment information
-- Forecast metadata
-
-The visualization is experiment-aware and can associate the generated
-figure with the registered experiment.
-
-Hybrid diagnostics are currently exposed primarily through the
-diagnostic/reporting workflow.
-
-Future diagnostic-specific plots may be added without modifying the
-forecasting layer.
-
----
-
-# 9. Reporting Layer
-
-## Implemented
-
-- `ReportWriter`
-- JSON metadata export
-- Human-readable experiment reports
-
-The report workflow now supports optional hybrid diagnostics.
+The universal internal processing contract is:
 
 ```text
-ForecastResult
+ds
+microVolt
+```
+
+The `DatasetProcessor` does not contain battery-specific schema conversion logic.
+
+---
+
+# 5. Canonical Dataset Processing
+
+Dataset processing is implemented under:
+
+```text
+zenerestimation/data/processing/
+```
+
+The core components are:
+
+```text
+DatasetProcessor
+DatasetProcessingResult
+ProcessedDatasetWriter
+ProcessedDatasetPaths
+```
+
+## 5.1 DatasetProcessor
+
+`DatasetProcessor` performs deterministic structural preparation.
+
+Its responsibilities include:
+
+* explicit date parsing,
+* chronological sorting,
+* duplicate timestamp handling,
+* canonical-frequency validation,
+* canonical timeline construction,
+* insertion of missing periods,
+* creation of the `is_observed` flag.
+
+The default quarterly frequency is:
+
+```text
+QS-MAR
+```
+
+Supported duplicate policies are:
+
+```text
+error
+first
+last
+mean
+```
+
+Production processing currently uses:
+
+```text
+duplicate_policy="mean"
+```
+
+for the validated battery datasets.
+
+---
+
+# 6. Processed Dataset Contract
+
+Processed datasets are stored under:
+
+```text
+datasets/processed/
+```
+
+Every processed CSV contains:
+
+```text
+ds
+microVolt
+is_observed
+```
+
+Example:
+
+```text
+ds          microVolt    is_observed
+2023-03-01  30.100       True
+2023-06-01  30.400       True
+2023-09-01               False
+2023-12-01  31.000       True
+```
+
+The meaning of each column is:
+
+### `ds`
+
+Canonical timestamp on the configured temporal grid.
+
+### `microVolt`
+
+Measured battery voltage signal.
+
+For inserted canonical periods:
+
+```text
+microVolt = NaN
+```
+
+### `is_observed`
+
+Identifies whether the row originated from a real measurement.
+
+```text
+True
+```
+
+means an original observed measurement.
+
+```text
+False
+```
+
+means a canonical period inserted by the processing layer.
+
+---
+
+# 7. Missing-Period Accounting
+
+Missing-period accounting is based on unique observed measurements, not raw source-row count.
+
+The canonical relationship is:
+
+```text
+missing_periods
+    =
+processed_rows
+    -
+observed_rows
+```
+
+Duplicate-resolution accounting is:
+
+```text
+duplicate_rows_resolved
+    =
+source_rows
+    -
+observed_rows
+```
+
+This distinction is required because duplicate raw timestamps may be collapsed during processing.
+
+---
+
+# 8. Validated Dataset State
+
+The current processed datasets have been validated as follows.
+
+## 8.1 Battery 732B-5610110
+
+```text
+Source Rows       : 105
+Processed Rows    : 109
+Observed Rows     : 103
+Missing Periods   : 6
+Start Date        : 1998-03-01
+End Date          : 2025-03-01
+```
+
+Inserted canonical periods:
+
+```text
+2002-09-01
+2010-03-01
+2010-06-01
+2024-06-01
+2024-09-01
+2024-12-01
+```
+
+Duplicate rows resolved:
+
+```text
+2
+```
+
+## 8.2 Battery 732B-5610410
+
+```text
+Source Rows       : 109
+Processed Rows    : 110
+Observed Rows     : 107
+Missing Periods   : 3
+Start Date        : 1998-03-01
+End Date          : 2025-06-01
+```
+
+Inserted canonical periods:
+
+```text
+2002-09-01
+2010-03-01
+2010-06-01
+```
+
+Duplicate rows resolved:
+
+```text
+2
+```
+
+---
+
+# 9. Processed Dataset Persistence
+
+`ProcessedDatasetWriter` persists canonical datasets.
+
+For each battery it writes:
+
+```text
+datasets/processed/
+    <battery>.csv
+    <battery>.metadata.json
+```
+
+The metadata file records information including:
+
+* schema name,
+* schema version,
+* battery identifier,
+* source row count,
+* processed row count,
+* observed row count,
+* missing-period count,
+* frequency,
+* processing version,
+* processing policy,
+* source file,
+* column semantics.
+
+Processed artifacts are overwrite-protected by default.
+
+Explicit regeneration requires:
+
+```text
+--overwrite
+```
+
+---
+
+# 10. BatteryDataset
+
+`BatteryDataset` is the framework-level dataset abstraction.
+
+Legacy loading remains available through:
+
+```python
+BatteryDataset.from_csv(...)
+```
+
+Canonical processed datasets are loaded through:
+
+```python
+BatteryDataset.from_processed_csv(...)
+```
+
+These APIs intentionally remain separate.
+
+This prevents Sprint 12 processing behavior from silently changing existing raw-data workflows.
+
+---
+
+# 11. Processed Dataset Consumption
+
+`BatteryDataset.from_processed_csv()`:
+
+* loads canonical processed CSV files,
+* parses `ds` as datetime,
+* preserves `microVolt` missing values,
+* preserves `is_observed`,
+* rejects malformed observation relationships,
+* rejects duplicate canonical timestamps,
+* identifies the dataset as processed,
+* records the source path,
+* preserves battery identity.
+
+No interpolation occurs during loading.
+
+No scaling occurs during loading.
+
+No model-specific preprocessing occurs during loading.
+
+---
+
+# 12. BatteryDataset Observation API
+
+Processed datasets expose an explicit observation-aware interface.
+
+## `observed_mask`
+
+Returns a Boolean mask identifying genuine measurements.
+
+```python
+dataset.observed_mask
+```
+
+## `observed_rows`
+
+Returns the number of real observed measurements.
+
+```python
+dataset.observed_rows
+```
+
+## `missing_period_count`
+
+Returns the number of canonical periods inserted during structural processing.
+
+```python
+dataset.missing_period_count
+```
+
+## `is_processed`
+
+Identifies whether the dataset originated from the canonical processed-data layer.
+
+```python
+dataset.is_processed
+```
+
+## `source_type`
+
+For processed datasets:
+
+```text
+processed
+```
+
+## `source_path`
+
+Records the processed CSV from which the dataset was loaded.
+
+---
+
+# 13. Backward Compatibility
+
+The framework retains the existing callable:
+
+```python
+dataset.missing_periods()
+```
+
+because existing reporting, summary, and visualization code depends on it.
+
+The new processed-dataset count therefore uses the separate API:
+
+```python
+dataset.missing_period_count
+```
+
+This preserves the existing framework contract while providing canonical Sprint 12 semantics.
+
+---
+
+# 14. Leakage-Safety Rule
+
+A central architectural rule is:
+
+> Structural dataset processing may occur before evaluation splitting. Any transformation that estimates or derives values from the target series must occur only after the holdout split.
+
+Therefore the following operations are permitted in persistent processed datasets:
+
+```text
+date parsing
+sorting
+duplicate resolution
+frequency validation
+canonical grid construction
+missing-period insertion
+observation flagging
+```
+
+The following operations are explicitly excluded:
+
+```text
+target interpolation
+MinMax scaling
+standardization
+LSTM window generation
+GRU sequence generation
+ARIMA differencing
+Kalman state estimation
+trend decomposition
+residual decomposition
+model-specific feature generation
+```
+
+---
+
+# 15. Evaluation Architecture
+
+Standardized evaluation is provided by:
+
+```text
+ForecastEvaluator
+EvaluationResult
+```
+
+The evaluation contract is:
+
+```text
+canonical dataset
       │
-      ├──────────────┐
-      │              │
-      ▼              ▼
-Forecast Report   Hybrid Diagnostics
-      │              │
-      └───────┬──────┘
-              ▼
-        ReportWriter
-              │
-              ▼
-          results/
+      ▼
+holdout split
+      │
+      ├── training partition
+      │
+      └── validation partition
+      │
+      ▼
+model fit on training data only
+      │
+      ▼
+holdout prediction
+      │
+      ▼
+EvaluationResult
 ```
 
-Hybrid diagnostics are optional in `ReportWriter`, preserving
-backward compatibility with existing non-hybrid demos.
+`ForecastEvaluator` owns metric calculation.
 
-A hybrid report contains:
+Demos should only orchestrate evaluation.
+
+---
+
+# 16. EvaluationResult
+
+`EvaluationResult` standardizes:
 
 ```text
-Experiment
-Dataset
-Forecast
-Hybrid Diagnostics
-Quality Assessment
-Recommendations
-Model Metadata
+model
+evaluation_steps
+rmse
+mae
+mape
+actual
+predicted
+dates
+metadata
+```
+
+Its serialized evaluation artifact uses a common schema.
+
+This enables downstream result loading and model comparison without model-specific parsing.
+
+---
+
+# 17. Forecast Evaluation Metrics
+
+The current standard metrics are:
+
+```text
+RMSE
+MAE
+MAPE
+```
+
+Lower values are considered better.
+
+MAPE excludes zero-valued actual observations from the denominator.
+
+---
+
+# 18. Forecasting Models
+
+The framework currently includes:
+
+## Classical models
+
+```text
+ARIMA
+Adaptive Kalman Filter
+```
+
+## Neural models
+
+```text
+LSTM
+GRU
+```
+
+## Hybrid models
+
+```text
+LinearTrendLSTMForecaster
+KalmanLSTMForecaster
+```
+
+Hybrid forecasting follows the structure:
+
+```text
+observed series
+      │
+      ▼
+trend model
+      │
+      ├──── trend
+      │
+      ▼
+residual series
+      │
+      ▼
+neural residual model
+      │
+      ▼
+trend forecast
+      +
+residual forecast
+      │
+      ▼
+hybrid forecast
 ```
 
 ---
 
-# 10. Experiment Management
+# 19. Hybrid Diagnostics
 
-## Implemented
+`HybridDiagnostics` evaluates hybrid decomposition quality.
 
-- `Experiment`
-- `ExperimentRegistry`
+It provides:
 
-Every experiment records:
+* decomposition verification,
+* residual mean,
+* residual standard deviation,
+* residual RMSE,
+* residual autocorrelation,
+* Durbin-Watson statistic,
+* Ljung-Box statistics,
+* quality score,
+* quality grade,
+* recommendations.
 
-- Experiment ID
-- Battery
-- Model
-- Framework version
-- Execution time
-- Forecast horizon
-- Artifact locations
-- Model metadata
-- Diagnostic metadata when available
+Results can be exported through:
 
-The experiment ID is also displayed in the forecast visualization.
+```text
+HybridDiagnosticsResult
+```
 
 ---
 
-# 11. Result Storage
+# 20. Prognostics
 
-All generated experiment artifacts are stored under the centralized
-`results/` directory.
+The prognostics layer supports:
 
-A typical experiment produces:
+* deterministic threshold RUL,
+* Monte Carlo RUL,
+* prognostic summaries,
+* estimated failure timing.
+
+Forecasting and prognostics remain conceptually separate:
+
+```text
+forecasting
+    → estimate future signal
+
+prognostics
+    → interpret future signal relative to
+      degradation / failure criteria
+```
+
+---
+
+# 21. Experiment Result Storage
+
+Experiment outputs use the standardized structure:
 
 ```text
 results/
-└── <battery>/
-    └── <model>/
-        └── <timestamp>_<run_number>/
-            ├── forecast.json
-            ├── evaluation.json
-            ├── experiment.json
-            ├── forecast.png
-            ├── report.txt
-            └── experiment.log
+  <battery>/
+    <model>/
+      <timestamp>_<run_number>/
+        forecast.png
+        forecast.json
+        evaluation.json
+        experiment.json
+        report.txt
+        experiment.log
 ```
 
-The artifacts from a single experiment remain together.
-
-The architecture deliberately avoids creating separate diagnostic
-result directories. Diagnostics belong to the experiment that produced
-them.
+Run numbering is maintained using a model-local counter.
 
 ---
 
-# 12. Data Processing Pipeline
+# 22. Result Loading
 
-All forecasting models operate on processed datasets.
+`ResultLoader` provides read-only access to stored runs.
+
+Supported operations include:
 
 ```text
-Raw Dataset
-     │
-     ▼
-Validation
-     │
-     ▼
-Missing Period Detection
-     │
-     ▼
-Interpolation / Reconstruction
-     │
-     ▼
-Processed BatteryDataset
-     │
-     ▼
-Forecasting
-     │
-     ▼
-ForecastResult
-     │
-     ▼
-Diagnostics
-     │
-     ▼
-HybridDiagnosticsResult
-     │
-     ▼
-Visualization
-     │
-     ▼
-Reporting
-     │
-     ▼
-Experiment Registry
+discover
+load
+load_battery
+load_model
+latest
 ```
 
-The preprocessing stage is deterministic and is performed before
-forecasting.
-
-Raw measurements remain separate from processed representations to
-support reproducibility.
-
----
-
-# 13. Architectural Principles
-
-ZenerEstimation follows a layered architecture that separates
-forecasting algorithms from preprocessing, diagnostics,
-visualization, reporting and experiment management.
-
-The framework follows these principles:
-
-1. Every forecasting model exposes a common public API.
-
-2. Forecasting models return standardized `ForecastResult` objects.
-
-3. Hybrid models orchestrate existing forecasting components rather
-   than duplicating forecasting logic.
-
-4. Hybrid diagnostics analyze already-calculated model results and do
-   not rerun forecasting unnecessarily.
-
-5. Diagnostic results are represented by a dedicated
-   `HybridDiagnosticsResult`.
-
-6. Data preprocessing is deterministic and performed before
-   forecasting.
-
-7. Evaluation and diagnostics operate on stored result objects
-   whenever possible.
-
-8. Reporting is separated from numerical computation.
-
-9. Visualization is separated from forecasting and diagnostics.
-
-10. Experiment registration tracks generated artifacts and metadata.
-
-11. Optional diagnostic functionality must not break existing
-    forecasting demos.
-
-12. Hyperparameter optimization remains an independent subsystem.
-
----
-
-# 14. Framework Layers
+Loaded runs are represented by:
 
 ```text
-Data Layer
-──────────
-BatteryDataset
-SmartDatasetLoader
-Raw / Processed Datasets
-
-        │
-        ▼
-
-Forecasting Layer
-─────────────────
-ARIMA
-Adaptive Kalman
-LSTM
-GRU
-Hybrid
-
-        │
-        ▼
-
-Result Layer
-────────────
-ForecastResult
-PrognosticResult
-HybridDiagnosticsResult
-ResultLoader
-
-        │
-        ▼
-
 ResultPackage
-─────────────
-with responsibilities:
+```
 
-discover stored experiments
-load one run
-filter by battery
-filter by model
-select latest run
-remain read-only
-never retrain models
+This allows comparison and reporting to operate entirely from persisted experiment artifacts.
 
-        │
-        ▼
+---
 
+# 23. Forecast Comparison
+
+The comparison layer contains:
+
+```text
 ForecastComparison
-──────────────────
-
-        │
-        ▼
-
 ComparisonResult
-────────────────
-Current supported metrics:
-RMSE, MAE, MAPE
+```
 
-        │
-        ▼
+It compares stored model evaluation results without retraining.
 
-Diagnostics Layer
-─────────────────
-HybridDiagnostics
-Decomposition Verification
-Residual Diagnostics
-Quality Assessment
+Supported comparison metrics are currently:
 
-        │
-        ▼
+```text
+rmse
+mae
+mape
+```
 
-Visualization Layer
-───────────────────
-ForecastPlot
-Experiment ID
-Missing Periods
-Holdout size
+The comparison layer can:
+
+* construct metric tables,
+* rank models,
+* identify the best model per metric,
+* generate standardized comparison summaries.
+
+---
+
+# 24. Reporting
+
+`ReportWriter` produces human-readable experiment reports.
+
+It supports:
+
+* forecast information,
+* evaluation information,
+* hybrid diagnostics,
+* residual statistics,
+* quality scores,
+* recommendations.
+
+The reporting layer accepts optional diagnostics and optional evaluation information to preserve compatibility across model types.
+
+---
+
+# 25. Visualization
+
+`ForecastPlot` provides forecast visualization.
+
+Current capabilities include:
+
+* historical observations,
+* fitted/model values,
+* future forecasts,
+* experiment information,
+* evaluation information.
+
+The experiment information box may include:
+
+```text
+experiment identifier
+missing periods
+holdout length
 RMSE
-RUL Plot (planned)
-Dashboard (planned)
-
-Note: "time/version/MAE/MAPE" values are kept in artifacts.
-
-        │
-        ▼
-
-Reporting Layer
-───────────────
-ReportWriter
-JSON Metadata
-Text Reports
-PDF (planned)
-
-        │
-        ▼
-
-Experiment Layer
-────────────────
-Experiment
-ExperimentRegistry
-
-        │
-        ▼
-
-Optimization Layer
-──────────────────
-Grid Search (planned)
-Bayesian Search (planned)
-AutoML (planned)
-
-Holdout Evaluation
-──────────────────
-Full Dataset
-    │
-    ├── Training subset
-    │       ↓
-    │   Evaluation model
-    │       ↓
-    │   Holdout forecast
-    │       ↓
-    │   RMSE / MAE / MAPE
-    │
-    └── Full dataset
-            ↓
-        Final model
-            ↓
-        Future forecast
 ```
+
+Detailed metrics remain available in reports and evaluation artifacts.
 
 ---
 
-# 15. Sprint Roadmap
+# 26. Sprint 12 Architecture
 
-## Sprint 9 — Hybrid Forecasting Framework ✅ COMPLETED
+Sprint 12 focuses on:
 
-### Goals
+> Multi-Model Evaluation Standardization
 
-- Common hybrid forecasting architecture
-- `BaseHybridForecaster`
-- `LinearTrendLSTMForecaster`
-- `KalmanLSTMForecaster`
-- Trend forecasting
-- Forecast combination
-- Residual decomposition
-- Forecast caching
-- Hybrid demonstration
-- Visualization improvements
-- Experiment information overlay
-
-### Deliverables
-
-- Unified hybrid forecasting API
-- Professional hybrid demonstrations
-- Experiment-aware figures
-- Centralized experiment artifacts
-- Automated test coverage
-
-**Status:** Completed
-
----
-
-## Sprint 10 — Hybrid Diagnostics ✅ COMPLETED
-
-### Objective
-
-Provide scientific diagnostics and quality assessment for hybrid
-forecasting models.
-
-### Implemented Components
-
-- `HybridDiagnostics`
-- `HybridDiagnosticsResult`
-- Residual diagnostics
-- Trend/residual variance analysis
-- Variance explained
-- Decomposition verification
-- Residual mean/std/RMSE
-- Lag-1 autocorrelation
-- Durbin-Watson statistic
-- Ljung-Box test
-- Hybrid quality assessment
-- Quality score and grade
-- Diagnostic recommendations
-- Reporting integration
-- Metadata integration
-- Hybrid diagnostic demo
-
-### Validation
-
-**115 automated tests passing**
-
-### Demonstration
-
-The standard hybrid demo workflow now supports:
+Its architectural pipeline is:
 
 ```text
-Dataset
-   ↓
-Kalman + LSTM Forecast
-   ↓
-Hybrid Diagnostics
-   ↓
-Quality Assessment
-   ↓
-Forecast Plot
-   ↓
-Report
-   ↓
-Metadata
-   ↓
-Experiment Registry
-```
-
-Generated artifacts remain under the centralized `results/`
-directory.
-
-**Status:** Completed
-
----
-
-# 16. Next Development Phase
-
-## Sprint 11 — Forecast Quality & Comparison
-
-### Objective
-
-Build on the standardized result and diagnostics architecture to
-compare forecasting models objectively.
-
-### Planned Components
-
-- Forecast comparison framework
-- Cross-model RMSE / MAE / MAPE comparison
-- Forecast stability analysis
-- Model ranking
-- Hybrid vs individual-model comparison
-- Comparative reporting
-- Comparative visualization
-
-### Planned Inputs
-
-```text
-ForecastResult
-HybridDiagnosticsResult
-Experiment Metadata
-```
-
-### Planned Output
-
-```text
+Every forecasting model
+        ↓
+same canonical dataset representation
+        ↓
+same leakage-safe holdout protocol
+        ↓
+same evaluation schema
+        ↓
+ResultLoader
+        ↓
 ForecastComparison
-       │
-       ├── Accuracy
-       ├── Stability
-       ├── Diagnostics
-       └── Ranking
 ```
 
-**Status:** Planned
-
-## Sprint 11A — Experiment Result Standardization ✅ COMPLETED
-
-with:
-
-- Canonical experiment package
-- Sequential run numbering
-- ResultLoader
-- ResultPackage
-- 141-test checkpoint
-
-
-## Sprint 11B — Forecast Comparison & Evaluation ✅ COMPLETED
-
-with:
-
-- ForecastComparison
-- ComparisonResult
-- RMSE/MAE/MAPE ranking
-- Comparison demo
-- Explicit ARIMA holdout evaluation
-- Evaluation-aware visualization
-- 174 tests passing
-
-
 ---
 
-## Sprint 12 — Multi-Model Evaluation Standardization
+# 27. Sprint 12 Milestone Status
 
-### Planned Components
-
-- Adaptive Kalman
-- LSTM
-- GRU
-- Kalman-LSTM
-
-**Status:** Planned
-
----
-
-## Sprint 13 — Optimization & Automated Model Selection
-
-### Planned Components
-
-- Grid Search
-- Bayesian Optimization
-- Automated hyperparameter search
-- Window selection
-- Neural architecture selection
-- Model selection
-- Reproducible experiment tracking
-
-**Status:** Planned
-
----
-
-## Future Prognostics Expansion
-
-The existing prognostics architecture includes:
-
-- Threshold estimation
-- Monte Carlo RUL
-- RUL analysis
-- `PrognosticResult`
-
-Future work may integrate forecasting uncertainty and diagnostic
-quality into RUL confidence assessment.
-
-**Status:** Partially implemented / planned expansion
-
----
-
-# 17. Architecture Status
-
-ZenerEstimation has progressed from a forecasting-oriented framework
-to a modular forecasting, diagnostics and prognostics framework.
-
-The currently implemented architecture provides:
+## Milestone 1 — Shared Evaluation
 
 ```text
-                    ┌────────────────────┐
-                    │   BatteryDataset   │
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐
-                    │    Forecasting     │
-                    │ ARIMA / KF / LSTM  │
-                    │ GRU / Hybrid       │
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐
-                    │   ForecastResult   │
-                    └─────────┬──────────┘
-                              │
-                 ┌────────────┴────────────┐
-                 │                         │
-                 ▼                         ▼
-        ┌─────────────────┐       ┌─────────────────┐
-        │   Diagnostics   │       │   Prognostics   │
-        │ Hybrid Quality  │       │ RUL / Threshold │
-        └────────┬────────┘       └────────┬────────┘
-                 │                         │
-                 ▼                         ▼
-        HybridDiagnosticsResult     PrognosticResult
-                 │                         │
-                 └────────────┬────────────┘
-                              ▼
-                    ┌────────────────────┐
-                    │ Visualization /    │
-                    │ Reporting          │
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐
-                    │ ExperimentRegistry │
-                    └────────────────────┘
+✓ EvaluationResult
+✓ ForecastEvaluator
+✓ ARIMA evaluator integration
+✓ standardized evaluation artifact
+✓ standardized reporting integration
+✓ standardized visualization integration
 ```
-
-The architecture is now sufficiently mature to support the next phase
-of development: objective comparison and benchmarking of forecasting
-models.
 
 ---
 
-> ZenerEstimation is designed as a modular forecasting and prognostics
-> framework in which data preparation, forecasting, hybrid modeling,
-> diagnostics, Remaining Useful Life estimation, visualization,
-> reporting and experiment management remain independent, reusable and
-> interoperable components.
+## Milestone 2A — Dataset Processing Standardization
+
+### 2A.1 — Processing Result Contract
+
+```text
+✓ DatasetProcessingResult
+✓ duplicate-aware accounting
+✓ observed-row accounting
+✓ missing-period accounting
+```
+
+### 2A.2 — Dataset Processor
+
+```text
+✓ deterministic date parsing
+✓ day-first handling
+✓ ISO-date handling
+✓ duplicate policies
+✓ frequency alignment
+✓ canonical timeline
+✓ explicit missing rows
+```
+
+### 2A.3 — Processed Dataset Persistence
+
+```text
+✓ ProcessedDatasetWriter
+✓ processed CSV
+✓ metadata JSON
+✓ overwrite protection
+✓ real-dataset processing
+```
+
+### 2A.4 — Processed Dataset Consumption
+
+```text
+✓ BatteryDataset.from_processed_csv()
+✓ is_observed preservation
+✓ NaN preservation
+✓ source metadata
+✓ observed-row API
+✓ canonical missing-period count
+✓ malformed processed-data validation
+✓ legacy API compatibility
+✓ real-data loader validation
+```
+
+Automated test status at milestone completion:
+
+```text
+324 tests passed
+```
+
+Real processed-loader validation:
+
+```text
+732B-5610110 : PASS
+732B-5610410 : PASS
+```
+
+---
+
+# 28. Next Milestone — 2A.5
+
+The next planned component is:
+
+```text
+Train-Only Temporal Preprocessing
+```
+
+Its purpose is to prepare model-ready training data after the evaluation split.
+
+Expected architecture:
+
+```text
+BatteryDataset
+      │
+      ▼
+ForecastEvaluator
+      │
+      ▼
+train / holdout split
+      │
+      ▼
+TRAIN ONLY
+      │
+      ▼
+TemporalPreprocessor
+      │
+      ├── missing-value handling
+      └── universal temporal preparation
+      │
+      ▼
+model-specific preprocessing
+```
+
+For neural models this may subsequently feed:
+
+```text
+scaling
+window generation
+sequence construction
+```
+
+These operations must never be fitted using holdout values.
+
+---
+
+# 29. Planned Sprint 12 Sequence
+
+```text
+Milestone 1
+    ✓ shared evaluation framework
+
+Milestone 2A
+    ✓ processed dataset standardization
+    ✓ persistence
+    ✓ consumption
+    → train-only temporal preprocessing
+
+Milestone 2B
+    Adaptive Kalman evaluation migration
+
+Milestone 3
+    LSTM evaluation migration
+    GRU evaluation migration
+
+Milestone 4
+    Kalman-LSTM evaluation migration
+
+Milestone 5
+    true multi-model comparison
+```
+
+---
+
+# 30. Future Sprint — Model Optimization
+
+Model optimization is intentionally separated from Sprint 12.
+
+A later sprint will address:
+
+* ARIMA order optimization,
+* Kalman Q/R tuning,
+* LSTM window optimization,
+* GRU window optimization,
+* neural unit-size search,
+* scaling strategies,
+* repeated neural runs,
+* forecast stability,
+* rolling-origin validation,
+* hyperparameter ranking.
+
+The separation is deliberate:
+
+```text
+Sprint 12
+"What is the common data and evaluation protocol?"
+
+Sprint 13
+"What model configuration performs best under that protocol?"
+```
+
+---
+
+# 31. Core Architectural Principle
+
+The framework now distinguishes three fundamentally different stages:
+
+```text
+1. Structural Processing
+
+raw measurements
+    ↓
+canonical timeline
+```
+
+```text
+2. Evaluation-Safe Preparation
+
+canonical timeline
+    ↓
+holdout split
+    ↓
+training-only transformations
+```
+
+```text
+3. Model-Specific Learning
+
+prepared training data
+    ↓
+forecasting model
+    ↓
+standard evaluation result
+```
+
+This separation is the foundation for reproducible and scientifically comparable battery degradation forecasting in ZenerEstimation.

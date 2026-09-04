@@ -24,6 +24,7 @@ class ReportWriter:
         result,
         diagnostics=None,
         experiment=None,
+        evaluation=None,
     ):
         """ Save a human-readable experiment report.
 
@@ -34,6 +35,7 @@ class ReportWriter:
         result: ForecastResult instance.
         diagnostics: Optional HybridDiagnosticsResult instance.
         experiment: Experiment instance.
+        evaluation: EvaluationResult instance.
         """
 
         filename = Path(filename)
@@ -241,6 +243,72 @@ class ReportWriter:
                         )
 
                     f.write("\n")
+
+
+            # =====================================================
+            # Evaluation
+            # =====================================================
+
+            if evaluation is not None:
+
+                f.write("Holdout Evaluation\n")
+                f.write("-" * 60 + "\n")
+
+                f.write(
+                    "Method           : Holdout\n"
+                )
+
+                f.write(
+                f"Evaluation Steps : "
+                f"{evaluation.evaluation_steps}\n"
+                )
+
+                # -------------------------------------------------
+                # Evaluation dataset sizes
+                # -------------------------------------------------
+
+                training_points = evaluation.metadata.get(
+                "training_points"
+                )
+
+                validation_points = evaluation.metadata.get(
+                "validation_points"
+                )
+
+                if training_points is not None:
+
+                    f.write(
+                        f"Training Points  : "
+                        f"{training_points}\n"
+                    )
+
+                if validation_points is not None:
+
+                    f.write(
+                        f"Validation Points: "
+                        f"{validation_points}\n"
+                    )
+
+                # -------------------------------------------------
+                # Evaluation metrics
+                # -------------------------------------------------
+
+                f.write(
+                    f"RMSE             : "
+                    f"{evaluation.rmse:.6f} µV\n"
+                )
+
+                f.write(
+                    f"MAE              : "
+                    f"{evaluation.mae:.6f} µV\n"
+                )
+
+                f.write(
+                    f"MAPE             : "
+                    f"{evaluation.mape:.6f}%\n"
+                )
+
+                f.write("\n")
 
             # =====================================================
             # Model Metadata

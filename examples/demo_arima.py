@@ -9,6 +9,7 @@ Usage:
     python examples/demo_arima.py \
         --battery 732B-5610410 \
         --horizon 6
+        --evaluation-steps 6
 
 ============================================================
 """
@@ -16,7 +17,7 @@ Usage:
 from pathlib import Path
 from time import perf_counter
 import argparse
-import numpy as np
+#import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
 from zenerestimation.forecasting.arima import ARIMAForecaster
@@ -33,12 +34,13 @@ from zenerestimation.utils.results import (
 
 from zenerestimation.utils.report_writer import ReportWriter
 
+from zenerestimation.evaluation import ForecastEvaluator
 
 # ============================================================
 # Configuration
 # ============================================================
 
-FRAMEWORK_VERSION = "0.10.0"
+FRAMEWORK_VERSION = "0.12.0"
 
 MODEL = "ARIMA"
 
@@ -98,10 +100,10 @@ def resolve_dataset(battery):
 # RMSE, MAE, MAPE Computation
 # ============================================================
 
-def compute_rmse(
+#def compute_rmse(
     actual,
     predicted,
-):
+#):
     actual = np.asarray(
         actual,
         dtype=float,
@@ -121,10 +123,10 @@ def compute_rmse(
     )
 
 
-def compute_mae(
+#def compute_mae(
     actual,
     predicted,
-):
+#):
     actual = np.asarray(
         actual,
         dtype=float,
@@ -144,10 +146,10 @@ def compute_mae(
     )
 
 
-def compute_mape(
+#def compute_mape(
     actual,
     predicted,
-):
+#):
     actual = np.asarray(
         actual,
         dtype=float,
@@ -256,139 +258,47 @@ def main():
         "Evaluating ARIMA Model"
     )
 
-    if evaluation_steps <= 0:
-
-        raise ValueError(
-            "evaluation-steps must be greater than zero."
+    evaluator = ForecastEvaluator(
+        evaluation_steps=evaluation_steps
     )
 
-    if evaluation_steps >= len(dataset):
+    evaluation_model = ARIMAForecaster()
 
-        raise ValueError(
-            "evaluation-steps must be smaller "
-            "than the dataset length."
+    evaluation_result = evaluator.evaluate(
+        dataset,
+        evaluation_model,
     )
 
-
-    train_df = (
-        dataset.data
-        .iloc[:-evaluation_steps]
-        .copy()
-    )
-
-    validation_df = (
-        dataset.data
-        .iloc[-evaluation_steps:]
-        .copy()
-    )
-
-    train_dataset = BatteryDataset(
-        train_df
-    )
-
-    validation_actual = (
-        validation_df["microVolt"]
-        .to_numpy(dtype=float)
-    )
-
-
-    evaluation_model = (
-        ARIMAForecaster()
-    )
-
-    evaluation_result = (
-        evaluation_model.fit_predict(
-            train_dataset,
-            steps=evaluation_steps,
-        )
-    )
-
-    validation_prediction = (
-        np.asarray(
-            evaluation_result.forecast,
-            dtype=float,
-        )
-    )
-
-
-    rmse = compute_rmse(
-        validation_actual,
-        validation_prediction,
-    )
-
-    mae = compute_mae(
-        validation_actual,
-        validation_prediction,
-    )
-
-    mape = compute_mape(
-        validation_actual,
-        validation_prediction,
-    )
+    evaluation = evaluation_result.to_dict()
 
 
     Console.success(
-    "Holdout evaluation completed."
+        "Holdout evaluation completed." 
     )
 
     print()
 
     print(
         f"Evaluation Steps  : "
-        f"{evaluation_steps}"
+        f"{evaluation_result.evaluation_steps}"
     )
 
     print(
         f"RMSE              : "
-        f"{rmse:.6f}"
+        f"{evaluation_result.rmse:.6f}"
     )
 
     print(
         f"MAE               : "
-        f"{mae:.6f}"
+        f"{evaluation_result.mae:.6f}"
     )
 
-    if mape is not None:
-
-        print(
-            f"MAPE              : "
-            f"{mape:.6f}%"
-    )
-
-    else:
-
-        print(
-            "MAPE              : N/A"
+    print(
+        f"MAPE              : "
+        f"{evaluation_result.mape:.6f}%"
     )
 
     print()
-
-
-    # ========================================================
-    # Evaluation Dictionary
-    # ========================================================
-
-    evaluation = {
-
-        "status":
-        "evaluated",
-
-        "method":
-        "holdout",
-
-        "evaluation_steps":
-            evaluation_steps,
-
-        "rmse":
-            rmse,
-
-        "mae":
-            mae,
-
-        "mape":
-            mape,
-
-    }   
 
 
     # ========================================================
@@ -530,39 +440,10 @@ def main():
     # ========================================================
 
     evaluation_json = {
-
         **evaluation,
-
-        "battery":
-            battery,
-
-        "model":
-            "arima",
-
-        "experiment_id":
-            experiment.id,
-
-        "training_points":
-            len(train_dataset),
-        
-        "validation_points":
-            len(validation_actual),
-
-        "actual": [
-            float(value)
-            for value in validation_actual
-        ],
-
-        "predicted": [
-            float(value)
-            for value in validation_prediction
-        ], 
-
-        "dates": [
-            str(date)
-            for date in validation_df["ds"]
-        ],
-
+        "battery": battery,
+        "model": "arima",
+        "experiment_id": experiment.id,
     }
 
     # ========================================================
@@ -636,8 +517,9 @@ def main():
 
         experiment=experiment,
 
-    )
+        evaluation=evaluation_result,
 
+    )
 
     # ========================================================
     # Final Summary

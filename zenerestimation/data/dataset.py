@@ -86,6 +86,340 @@ class BatteryDataset:
 
         return dataset
 
+    @classmethod
+    def from_processed_csv(
+        cls,
+        filename,
+        *,
+        battery: str | None = None,
+    ):
+        """
+        Load a canonical processed battery dataset.
+
+        Processed datasets must contain:
+
+            ds
+            microVolt
+            is_observed
+
+        Missing canonical periods are preserved as rows with:
+
+            microVolt = NaN
+            is_observed = False
+
+        No interpolation, scaling, or model-specific
+        preprocessing is performed here.
+        """
+
+        path = Path(
+            filename
+        )
+
+        if not path.exists():
+
+            raise FileNotFoundError(
+                "processed dataset not found: "
+                f"{path}"
+            )
+
+        data = pd.read_csv(
+            path
+        )
+
+        if data.empty:
+
+            raise ValueError(
+                "processed dataset is empty"
+            )
+
+        required_columns = {
+            "ds",
+            "microVolt",
+            "is_observed",
+        }
+
+        missing_columns = (
+            required_columns
+            - set(data.columns)
+        )
+
+        if missing_columns:
+
+            raise ValueError(
+                "processed dataset is missing "
+                "required columns: "
+                f"{sorted(missing_columns)}"
+            )
+
+        # --------------------------------------------------------
+        # Dates
+        # --------------------------------------------------------
+
+        data["ds"] = pd.to_datetime(
+            data["ds"],
+            format="%Y-%m-%d",
+            errors="coerce",
+        )
+
+        if data["ds"].isna().any():
+
+            raise ValueError(
+                "processed dataset contains "
+                "invalid dates"
+            )
+
+        # --------------------------------------------------------
+        # Target
+        # --------------------------------------------------------
+
+        data["microVolt"] = pd.to_numeric(
+            data["microVolt"],
+            errors="coerce",
+        )
+
+        # NaN is intentionally allowed because inserted
+        # canonical periods have no measured target value.
+
+        # --------------------------------------------------------
+        # Observation flag
+        # --------------------------------------------------------
+
+        data["is_observed"] = (
+            data["is_observed"]
+            .astype("string")
+            .str.strip()
+            .str.lower()
+            .map(
+                {
+                    "true": True,
+                    "false": False,
+                }
+            )
+        )
+
+        if data[
+            "is_observed"
+        ].isna().any():
+
+            raise ValueError(
+                "processed dataset contains "
+                "invalid is_observed values"
+            )
+
+        data["is_observed"] = data[
+            "is_observed"
+        ].astype(bool)
+
+        # --------------------------------------------------------
+        # Structural consistency
+        # --------------------------------------------------------
+
+        observed_without_value = (
+            data["is_observed"]
+            & data["microVolt"].isna()
+        )
+
+        if observed_without_value.any():
+
+            dates = (
+                data.loc[
+                    observed_without_value,
+                    "ds",
+                ]
+                .dt.strftime(
+                    "%Y-%m-%d"
+                )
+                .tolist()
+            )
+
+            raise ValueError(
+                "observed rows cannot have "
+                "missing microVolt values: "
+                f"{dates}"
+            )
+
+        inserted_with_value = (
+            ~data["is_observed"]
+            & data["microVolt"].notna()
+        )
+
+        if inserted_with_value.any():
+
+            dates = (
+                data.loc[
+                    inserted_with_value,
+                    "ds",
+                ]
+                .dt.strftime(
+                    "%Y-%m-%d"
+                )
+                .tolist()
+            )
+
+            raise ValueError(
+                "inserted rows must have "
+                "missing microVolt values: "
+                f"{dates}"
+            )
+
+        if data["ds"].duplicated().any():
+
+            duplicates = (
+                data.loc[
+                    data["ds"].duplicated(
+                        keep=False
+                    ),
+                    "ds",
+                ]
+                .dt.strftime(
+                    "%Y-%m-%d"
+                )
+                .unique()
+                .tolist()
+            )
+
+            raise ValueError(
+                "processed dataset contains "
+                "duplicate timestamps: "
+                f"{duplicates}"
+            )
+
+        data = (
+            data
+            .sort_values("ds")
+            .reset_index(drop=True)
+        )
+
+        resolved_battery = (
+            battery
+            if battery is not None
+            else path.stem
+        )
+
+        dataset = cls(
+            data
+        )
+
+        dataset._battery = (
+            resolved_battery
+        )
+
+        dataset._source_type = (
+            "processed"
+        )
+
+        dataset._source_path = (
+            path
+        )
+
+        return dataset
+
+
+    @property
+    def is_processed(
+        self,
+    ) -> bool:
+        """
+        Whether this dataset originated from the
+        canonical processed-dataset layer.
+        """
+
+        return (
+            getattr(
+                self,
+                "_source_type",
+                None,
+            )
+            == "processed"
+        )
+
+    @property
+    def source_type(
+        self,
+    ) -> str:
+        """
+        Dataset source representation.
+        """
+
+        return getattr(
+            self,
+            "_source_type",
+            "raw",
+        )
+
+    @property
+    def source_path(
+        self,
+    ):
+        """
+        Original source file path, when available.
+        """
+
+        return getattr(
+            self,
+            "_source_path",
+            None,
+        )
+
+    @property
+    def observed_mask(
+        self,
+    ) -> pd.Series:
+        """
+        Boolean mask identifying genuine measured
+        observations.
+
+        Legacy/raw datasets without an is_observed
+        column are treated as fully observed.
+        """
+
+        if (
+            "is_observed"
+            not in self.data.columns
+        ):
+
+            return pd.Series(
+                True,
+                index=self.data.index,
+                dtype=bool,
+            )
+
+        return (
+            self.data[
+                "is_observed"
+            ]
+            .astype(bool)
+            .copy()
+        )
+
+    @property
+    def observed_rows(
+        self,
+    ) -> int:
+        """
+        Number of genuine measured observations.
+        """
+
+        return int(
+            self.observed_mask.sum()
+        )
+
+    @property
+    def missing_period_count(
+        self,
+    ) -> int:
+        """
+        Number of inserted canonical periods.
+
+        For canonical processed datasets this is
+        derived from the is_observed flag.
+        """
+
+        return int(
+            (
+                ~self.observed_mask
+            ).sum()
+        )
 
     @property 
     def last_date(self):

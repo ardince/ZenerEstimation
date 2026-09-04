@@ -1,0 +1,31 @@
+{
+    "schema": "zenerestimation.processed-dataset",
+    "schema_version": "1.0",
+    "battery": "732B-5610410",
+    "source_rows": 109,
+    "processed_rows": 110,
+    "observed_rows": 107,
+    "missing_periods": 3,
+    "frequency": "QS-MAR",
+    "processing_version": "1.0",
+    "target": "microVolt",
+    "processor": "DatasetProcessor",
+    "date_dayfirst": true,
+    "duplicate_policy": "mean",
+    "source": "datasets\\raw\\732B-5610410.csv",
+    "columns": {
+        "ds": {
+            "role": "timestamp",
+            "format": "YYYY-MM-DD"
+        },
+        "microVolt": {
+            "role": "target",
+            "missing_representation": "empty CSV field"
+        },
+        "is_observed": {
+            "role": "observation_flag",
+            "true": "original measured observation",
+            "false": "inserted canonical period"
+        }
+    }
+}
