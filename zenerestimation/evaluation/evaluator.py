@@ -17,6 +17,23 @@ from zenerestimation.evaluation.result import EvaluationResult
 
 class ForecastEvaluator:
     """
+    Evaluate forecasting models using a leakage-safe
+    temporal holdout protocol.
+
+    The evaluator:
+
+    1. splits the dataset into training and validation
+       partitions;
+    2. optionally preprocesses the training partition only;
+    3. fits the supplied forecasting model on that prepared
+       training partition;
+    4. forecasts the validation horizon;
+    5. evaluates predictions against untouched validation
+       observations.
+
+    Model-specific transformations remain the responsibility
+    of the forecasting model.
+    
     Evaluate a forecasting model using a deterministic holdout split.
 
     The final ``evaluation_steps`` observations are reserved for
@@ -32,14 +49,54 @@ class ForecastEvaluator:
     def __init__(
         self,
         evaluation_steps: int = 6,
+        *,
+        preprocessor=None,
     ) -> None:
+
+        if (
+                not isinstance(
+                    evaluation_steps,
+                    int,
+                )
+                or isinstance(
+                    evaluation_steps,
+                    bool,
+                )
+            ):
+
+                raise TypeError(
+                    "evaluation_steps must "
+                    "be an integer"
+                )
 
         if evaluation_steps <= 0:
             raise ValueError(
                 "evaluation_steps must be greater than zero"
             )
 
-        self.evaluation_steps = evaluation_steps
+        if (
+                preprocessor is not None
+                and not callable(
+                    getattr(
+                        preprocessor,
+                        "fit_transform",
+                        None,
+                    )
+                )
+            ):
+
+                raise TypeError(
+                    "preprocessor must provide "
+                    "a callable fit_transform method"
+                )
+
+        self.evaluation_steps = (
+            evaluation_steps
+        )
+
+        self.preprocessor = (
+            preprocessor
+        )
 
     # --------------------------------------------------------
     # Public API
@@ -74,14 +131,35 @@ class ForecastEvaluator:
         self._validate_model(model)
 
         train_dataset, validation_df = (
-            self.split_dataset(dataset)
+            self.split_dataset(
+                dataset
+            )
         )
 
-        # ----------------------------------------------------
-        # Fit only on training data
-        # ----------------------------------------------------
+        self._validate_validation_partition(
+            validation_df
+        )
 
-        model.fit(train_dataset)
+        prepared_train = (
+            train_dataset
+        )
+
+        if (
+            self.preprocessor
+            is not None
+        ):
+
+            prepared_train = (
+                self.preprocessor
+                .fit_transform(
+                    train_dataset
+                )
+            )
+
+        model.fit(
+            prepared_train
+        )
+        
 
         # ----------------------------------------------------
         # Forecast holdout period
@@ -162,6 +240,9 @@ class ForecastEvaluator:
                 ),
                 "validation_points": len(
                     validation_df
+                ),
+                "preprocessing": (
+                    self._preprocessing_metadata()
                 ),
             },
         )
@@ -416,9 +497,111 @@ class ForecastEvaluator:
             predicted_array,
         )
 
+    
     # --------------------------------------------------------
     # Helpers
     # --------------------------------------------------------
+
+    def _validate_validation_partition(
+        self,
+        validation_df,
+    ) -> None:
+        """
+        Validate that the holdout partition contains
+        observed target values suitable for evaluation.
+
+        Validation targets are never interpolated or otherwise
+        preprocessed by the evaluator.
+        """
+
+        if (
+            "microVolt"
+            not in validation_df.columns
+        ):
+            raise ValueError(
+                "validation partition must contain "
+                "a microVolt column"
+            )
+
+        missing_mask = (
+            validation_df[
+                "microVolt"
+            ].isna()
+        )
+
+        if not missing_mask.any():
+            return
+
+        if (
+            "ds"
+            in validation_df.columns
+        ):
+            missing_dates = (
+                validation_df.loc[
+                    missing_mask,
+                    "ds",
+                ]
+                .dt.strftime(
+                    "%Y-%m-%d"
+                )
+                .tolist()
+            )
+
+            raise ValueError(
+                "validation partition contains "
+                "missing target values at: "
+                f"{missing_dates}"
+            )
+
+        raise ValueError(
+            "validation partition contains "
+            "missing target values"
+        )
+
+
+    def _preprocessing_metadata(
+        self,
+    ) -> dict:
+        """
+        Describe preprocessing used during evaluation.
+        """
+
+        if self.preprocessor is None:
+            return {
+                "enabled": False,
+            }
+
+        metadata = {
+            "enabled": True,
+            "name": type(
+                self.preprocessor
+            ).__name__,
+        }
+
+        method = getattr(
+            self.preprocessor,
+            "method",
+            None,
+        )
+
+        if method is not None:
+            metadata[
+                "method"
+            ] = method
+
+        fill_edges = getattr(
+            self.preprocessor,
+            "fill_edges",
+            None,
+        )
+
+        if fill_edges is not None:
+            metadata[
+                "fill_edges"
+            ] = fill_edges
+
+        return metadata
+
 
     @staticmethod
     def _model_name(

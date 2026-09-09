@@ -2,9 +2,7 @@ import numpy as np
 
 from tests.helpers import make_dataset
 
-#from zenerestimation.forecasting.hybrid import (
- #   KalmanLSTMForecaster,
-#)
+from zenerestimation.forecasting.kalman import KalmanForecaster
 
 from zenerestimation.forecasting.kalman_filter import (
     AdaptiveKalmanFilter,
@@ -84,3 +82,22 @@ def test_forecast_is_deterministic():
     f2 = model.forecast(6)
 
     np.testing.assert_allclose(f1, f2)
+
+
+def test_kalman_predict_uses_dataset_forecast_dates():
+
+    ds = make_dataset()
+
+    model = KalmanForecaster()
+
+    model.fit(ds)
+
+    result = model.predict(4)
+
+    expected_dates = ds.forecast_dates(
+        4
+    )
+
+    assert list(result.dates) == list(
+        expected_dates
+    )

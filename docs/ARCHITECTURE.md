@@ -925,77 +925,201 @@ ForecastComparison
 
 # 27. Sprint 12 Milestone Status
 
-## Milestone 1 — Shared Evaluation
+## Sprint 12 — Standardized Forecast Evaluation
+
+Sprint 12 establishes a common, leakage-safe evaluation pipeline for all forecasting models.
+
+The objective is to ensure that ARIMA, Kalman, LSTM, GRU, and hybrid models are evaluated under the same temporal holdout protocol and produce the same standardized evaluation artifacts.
+
+### Evaluation Architecture
 
 ```text
-✓ EvaluationResult
-✓ ForecastEvaluator
-✓ ARIMA evaluator integration
-✓ standardized evaluation artifact
-✓ standardized reporting integration
-✓ standardized visualization integration
+Processed Battery Dataset
+        │
+        ▼
+ForecastEvaluator
+        │
+        ├── Temporal holdout split
+        │
+        ├── Training partition
+        │       │
+        │       ▼
+        │   TemporalPreprocessor
+        │       │
+        │       ▼
+        │   Model.fit()
+        │
+        └── Untouched validation partition
+                │
+                ▼
+            Model.predict()
+                │
+                ▼
+          EvaluationResult
+                │
+                ├── RMSE
+                ├── MAE
+                ├── MAPE
+                ├── actual values
+                ├── predicted values
+                ├── dates
+                └── preprocessing metadata
 ```
 
----
+The holdout partition is never interpolated or otherwise transformed by the evaluator.
 
-## Milestone 2A — Dataset Processing Standardization
+Training-only preprocessing is applied after the temporal split, preventing information from future validation periods from leaking into model training.
 
-### 2A.1 — Processing Result Contract
+### Processed Dataset Layer
+
+Canonical datasets are stored under:
 
 ```text
-✓ DatasetProcessingResult
-✓ duplicate-aware accounting
-✓ observed-row accounting
-✓ missing-period accounting
+datasets/processed/
 ```
 
-### 2A.2 — Dataset Processor
+Processed datasets preserve the complete temporal structure of the battery measurements.
+
+Required columns are:
 
 ```text
-✓ deterministic date parsing
-✓ day-first handling
-✓ ISO-date handling
-✓ duplicate policies
-✓ frequency alignment
-✓ canonical timeline
-✓ explicit missing rows
+ds
+microVolt
+is_observed
 ```
 
-### 2A.3 — Processed Dataset Persistence
+Missing quarterly periods are inserted explicitly and retain:
 
 ```text
-✓ ProcessedDatasetWriter
-✓ processed CSV
-✓ metadata JSON
-✓ overwrite protection
-✓ real-dataset processing
+microVolt = NaN
+is_observed = False
 ```
 
-### 2A.4 — Processed Dataset Consumption
+Persistent processed datasets are not interpolated.
 
-```text
-✓ BatteryDataset.from_processed_csv()
-✓ is_observed preservation
-✓ NaN preservation
-✓ source metadata
-✓ observed-row API
-✓ canonical missing-period count
-✓ malformed processed-data validation
-✓ legacy API compatibility
-✓ real-data loader validation
+Interpolation is performed only on model-training data through `TemporalPreprocessor`.
+
+The standard loading path is:
+
+```python
+dataset = BatteryDataset.from_processed_csv(...)
 ```
 
-Automated test status at milestone completion:
+### Temporal Preprocessing
 
-```text
-324 tests passed
+`TemporalPreprocessor` performs universal temporal missing-value preparation.
+
+Its responsibilities are intentionally limited to:
+
+* internal interpolation of missing training targets;
+* optional edge filling;
+* preservation of `is_observed` provenance;
+* preservation of dataset identity and source metadata.
+
+It does not perform model-specific transformations such as scaling, sequence-window creation, ARIMA differencing, Kalman state estimation, or hybrid decomposition.
+
+### Standard Forecasting Contract
+
+Models evaluated by `ForecastEvaluator` expose the common interface:
+
+```python
+model.fit(dataset)
+model.predict(steps)
 ```
 
-Real processed-loader validation:
+`predict()` returns a `ForecastResult`.
+
+This separates framework-facing forecasting models from lower-level numerical components.
+
+For example:
 
 ```text
-732B-5610110 : PASS
-732B-5610410 : PASS
+AdaptiveKalmanFilter
+    → low-level Kalman filtering component
+
+KalmanForecaster
+    → framework forecasting model
+    → fit(dataset)
+    → predict(steps)
+```
+
+### Kalman Migration
+
+`KalmanForecaster` is fully integrated with the standardized Sprint 12 evaluation pipeline.
+
+The official Kalman workflow is now:
+
+```text
+BatteryDataset.from_processed_csv()
+        │
+        ├── ForecastEvaluator
+        │       │
+        │       ├── holdout split
+        │       ├── train-only TemporalPreprocessor
+        │       ├── KalmanForecaster.fit()
+        │       └── EvaluationResult
+        │
+        └── full-data TemporalPreprocessor
+                │
+                ▼
+          KalmanForecaster.fit()
+                │
+                ▼
+          future ForecastResult
+```
+
+Evaluation fitting and final future forecasting use separate model instances.
+
+The evaluation model is fitted only on the training partition.
+
+The final forecasting model is fitted on all currently available historical data.
+
+### Standard Result Artifacts
+
+Each experiment produces the standardized result structure:
+
+```text
+results/
+  <battery>/
+    <model>/
+      <timestamp>_<run_number>/
+        forecast.png
+        forecast.json
+        evaluation.json
+        experiment.json
+        report.txt
+        experiment.log
+```
+
+`evaluation.json` is generated from `EvaluationResult.to_dict()` and is consumed by `ResultLoader` and `ForecastComparison`.
+
+### Current Sprint 12 Status
+
+Completed:
+
+* standardized `EvaluationResult`;
+* standardized `ForecastEvaluator`;
+* leakage-safe temporal holdout evaluation;
+* train-only temporal preprocessing;
+* processed dataset generation and persistence;
+* processed dataset loading through `BatteryDataset`;
+* ARIMA standardized evaluation;
+* Kalman standardized evaluation;
+* standardized evaluation artifacts;
+* standardized comparison compatibility.
+
+Current regression baseline:
+
+```text
+356 tests passing
+```
+
+Next model migrations:
+
+```text
+LSTM
+GRU
+Kalman-LSTM hybrid
 ```
 
 ---

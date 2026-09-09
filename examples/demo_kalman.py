@@ -11,7 +11,10 @@ from pathlib import Path
 from time import perf_counter
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.data.smart_loader import SmartDatasetLoader
+#from zenerestimation.data.smart_loader import SmartDatasetLoader
+from zenerestimation.data.temporal import TemporalPreprocessor
+
+from zenerestimation.evaluation import ForecastEvaluator
 
 from zenerestimation.forecasting.kalman import KalmanForecaster
 
@@ -29,18 +32,19 @@ from zenerestimation.utils.report_writer import ReportWriter
 
 from zenerestimation.utils.console import Console
 
-
 # ============================================================
 # Configuration
 # ============================================================
 
-FRAMEWORK_VERSION = "0.6.0"
+FRAMEWORK_VERSION = "0.12.0"
 
 DATASET = Path(
-    "datasets/raw/732B-5610410.csv"
+    "datasets/processed/732B-5610410.csv"
 )
 
 FORECAST_HORIZON = 6
+
+EVALUATION_STEPS = 6
 
 MODEL = "Kalman"
 
@@ -56,42 +60,101 @@ Console.header(
 start = perf_counter()
 
 # ============================================================
-# Load Dataset
+# Load Processed Dataset
 # ============================================================
 
-Console.section("Loading Dataset")
+Console.section("Loading Processed Dataset")
 
-loader = SmartDatasetLoader()
+dataset = BatteryDataset.from_processed_csv(
+    DATASET
+)
 
-df, metadata = loader.load(DATASET)
-
-dataset = BatteryDataset(df)
-
-Console.success("Dataset loaded successfully.")
+Console.success(
+    "Processed dataset loaded successfully."
+)
 
 summary = dataset.summary()
 
 print()
 
-print(f"Battery           : {metadata['battery_id']}")
-print(f"Dataset Format    : {metadata['format']}")
+print(f"Battery           : {dataset.battery}")
+print(f"Source Type       : {dataset.source_type}")
 print(f"Measurements      : {summary['rows']}")
-print(f"Time Span         : {summary['start'].date()}  →  {summary['end'].date()}")
+print(f"Observed Rows     : {dataset.observed_rows}")
+print(f"Missing Periods   : {dataset.missing_period_count}")
+
+print(
+    f"Time Span         : "
+    f"{summary['start'].date()}  →  "
+    f"{summary['end'].date()}"
+)
+
 print(f"Frequency         : {summary['frequency']}")
-print(f"Missing Periods   : {summary['missing_periods']}")
 
 print()
 
 # ============================================================
-# Forecast
+# Holdout Evaluation
 # ============================================================
 
-Console.section("Training Kalman Model")
+Console.section("Evaluating Kalman Model")
+
+evaluator = ForecastEvaluator(
+    evaluation_steps=EVALUATION_STEPS,
+    preprocessor=TemporalPreprocessor(),
+)
+
+evaluation_model = KalmanForecaster()
+
+evaluation_result = evaluator.evaluate(
+    dataset,
+    evaluation_model,
+)
+
+evaluation_payload = evaluation_result.to_dict()
+
+Console.success("Holdout evaluation completed.")
+
+print()
+
+print(
+    f"Evaluation Steps  : "
+    f"{evaluation_result.evaluation_steps}"
+)
+
+print(
+    f"RMSE              : "
+    f"{evaluation_result.rmse:.6f}"
+)
+
+print(
+    f"MAE               : "
+    f"{evaluation_result.mae:.6f}"
+)
+
+print(
+    f"MAPE              : "
+    f"{evaluation_result.mape:.6f}%"
+)
+
+print()
+
+
+# ============================================================
+# Final Full-Data Forecast
+# ============================================================
+
+Console.section("Training Final Kalman Model")
+
+forecast_dataset = (
+    TemporalPreprocessor()
+    .fit_transform(dataset)
+)
 
 model = KalmanForecaster()
 
 result = model.fit_predict(
-    dataset,
+    forecast_dataset,
     steps=FORECAST_HORIZON,
 )
 
@@ -117,6 +180,7 @@ Console.section("Creating Forecast Plot")
 plot = ForecastPlot(
     dataset,
     result,
+    evaluation=evaluation_payload,
 )
 
 plot.plot(
@@ -153,9 +217,15 @@ experiment = Experiment(
 
         "figure": str(paths.figure),
 
-        "metadata": str(paths.metadata),
+        "forecast": str(paths.forecast),
+
+        "evaluation": str(paths.evaluation),
+
+        "experiment": str(paths.experiment),
 
         "report": str(paths.report),
+
+        "log": str(paths.log),
 
     },
 
@@ -176,10 +246,10 @@ Console.success(
 )
 
 # ============================================================
-# Save Metadata
+# Save Experiment
 # ============================================================
 
-metadata_json = {
+experiment_json = {
 
     "experiment": experiment.to_dict(),
 
@@ -187,11 +257,31 @@ metadata_json = {
 
     "forecast": result.summary(),
 
+    "evaluation": evaluation_payload,
+
 }
 
 save_metadata(
-    paths.metadata,
-    metadata_json,
+    paths.experiment,
+    experiment_json,
+)
+
+# ============================================================
+# Save Evaluation
+# ============================================================
+
+save_metadata(
+    paths.evaluation,
+    evaluation_payload,
+)
+
+# ============================================================
+# Save Forecast
+# ============================================================
+
+save_metadata(
+    paths.forecast,
+    result.summary(),
 )
 
 # ============================================================
@@ -208,6 +298,8 @@ ReportWriter.save(
 
     experiment=experiment,
 
+    evaluation=evaluation_result,
+
 )
 
 # ============================================================
@@ -217,9 +309,11 @@ ReportWriter.save(
 Console.section("Dataset Summary")
 
 print(f"Measurements      : {summary['rows']}")
+print(f"Observed Rows     : {dataset.observed_rows}")
 print(f"Columns           : {summary['columns']}")
 print(f"Missing Values    : {summary['missing']}")
-print(f"Missing Periods   : {summary['missing_periods']}")
+print(f"Missing Periods   : {dataset.missing_period_count}")
+
 print(f"Time Span         : {summary['start'].date()} → {summary['end'].date()}")
 print(f"Frequency         : {summary['frequency']}")
 
@@ -229,6 +323,10 @@ print(f"Experiment ID     : {experiment.id}")
 print(f"Battery           : {experiment.battery}")
 print(f"Model             : {experiment.model}")
 print(f"Horizon           : {experiment.horizon}")
+print(f"Evaluation Steps  : {evaluation_result.evaluation_steps}")
+print(f"RMSE              : {evaluation_result.rmse:.6f}")
+print(f"MAE               : {evaluation_result.mae:.6f}")
+print(f"MAPE              : {evaluation_result.mape:.6f}%")
 print(f"Execution Time    : {experiment.execution_time:.2f} s")
 
 # ============================================================

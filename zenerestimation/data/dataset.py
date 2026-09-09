@@ -944,7 +944,7 @@ class BatteryDataset:
 
         if freq is None:
 
-            freq = "QS-JAN"
+            freq = "QS-MAR"
 
         return pd.date_range(
 

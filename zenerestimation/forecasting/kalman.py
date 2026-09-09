@@ -257,20 +257,9 @@ class KalmanForecaster(BaseForecastModel):
 
             forecast.append(x[0])
 
-        last_date = self.dataset.data["ds"].iloc[-1]
-
-        freq = pd.infer_freq(
-            self.dataset.data["ds"]
+        dates = self.dataset.forecast_dates(
+            steps
         )
-
-        if freq is None:
-            freq = "QS-JAN"
-
-        dates = pd.date_range(
-            start=last_date,
-            periods=steps + 1,
-            freq=freq,
-        )[1:]
 
         return ForecastResult(
 
