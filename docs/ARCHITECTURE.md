@@ -927,11 +927,64 @@ ForecastComparison
 
 ## Sprint 12 — Standardized Forecast Evaluation
 
-Sprint 12 establishes a common, leakage-safe evaluation pipeline for all forecasting models.
+Sprint 12 introduced a common evaluation and result pipeline for
+classical forecasting models.
 
-The objective is to ensure that ARIMA, Kalman, LSTM, GRU, and hybrid models are evaluated under the same temporal holdout protocol and produce the same standardized evaluation artifacts.
+```text
+Processed Dataset
+        ↓
+ForecastEvaluator
+        ↓
+Temporal Holdout Split
+        ↓
+Train-Only TemporalPreprocessor
+        ↓
+Forecast Model
+        ↓
+EvaluationResult
+        ↓
+Standardized Result Artifacts
+        ↓
+ResultLoader / ForecastComparison
+
 
 ### Evaluation Architecture
+
+Evaluation Principles
+
+Processed datasets preserve the canonical temporal structure and
+explicitly identify missing observations.
+Temporal preprocessing is fitted only on the training partition.
+Validation targets remain untouched and are never interpolated.
+Historical benchmark windows may be defined using an explicit
+evaluation endpoint.
+Final forecasting uses the complete processed dataset independently
+of the holdout evaluation window.
+Forecast dates are generated centrally by BatteryDataset.
+ARIMA and Kalman use the same standardized evaluation contract.
+
+Standard Result Artifacts
+
+Each experiment produces:
+
+forecast.png
+forecast.json
+evaluation.json
+experiment.json
+report.txt
+experiment.log
+
+The forecast artifact contains the numerical forecast values and dates,
+while the evaluation artifact contains holdout predictions and
+standardized error metrics.
+
+Classical Model Status
+
+| Model  | Processed Data | Standard Evaluation | Standard Artifacts |
+| ------ | -------------- | ------------------- | ------------------ |
+| ARIMA  | ✓              | ✓                   | ✓                  |
+| Kalman | ✓              | ✓                   | ✓                  |
+
 
 ```text
 Processed Battery Dataset

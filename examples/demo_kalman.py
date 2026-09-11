@@ -9,9 +9,10 @@ Official Kalman Demonstration
 
 from pathlib import Path
 from time import perf_counter
+import argparse
 
 from zenerestimation.data.dataset import BatteryDataset
-#from zenerestimation.data.smart_loader import SmartDatasetLoader
+
 from zenerestimation.data.temporal import TemporalPreprocessor
 
 from zenerestimation.evaluation import ForecastEvaluator
@@ -38,16 +39,63 @@ from zenerestimation.utils.console import Console
 
 FRAMEWORK_VERSION = "0.12.0"
 
-DATASET = Path(
-    "datasets/processed/732B-5610410.csv"
-)
-
-FORECAST_HORIZON = 6
-
-EVALUATION_STEPS = 6
+DEFAULT_BATTERY = "732B-5610110"
+DEFAULT_HORIZON = 6
+DEFAULT_EVALUATION_STEPS = 5
+DEFAULT_EVALUATION_END = None
 
 MODEL = "Kalman"
 
+
+def parse_args():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the official ZenerEstimation "
+            "Kalman forecasting demonstration."
+        )
+    )
+
+    parser.add_argument(
+        "--battery",
+        default=DEFAULT_BATTERY,
+        help="Battery dataset identifier.",
+    )
+
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=DEFAULT_HORIZON,
+        help="Forecast horizon in quarters.",
+    )
+
+    parser.add_argument(
+        "--evaluation-steps",
+        type=int,
+        default=DEFAULT_EVALUATION_STEPS,
+        help="Number of holdout quarters.",
+    )
+
+    parser.add_argument(
+        "--evaluation-end",
+        default=DEFAULT_EVALUATION_END,
+        help=(
+            "Last date included in holdout evaluation "
+            "(YYYY-MM-DD)."
+        ),
+    )
+
+    return parser.parse_args()
+
+args = parse_args()
+
+DATASET = Path(
+    f"datasets/processed/{args.battery}.csv"
+)
+
+FORECAST_HORIZON = args.horizon
+EVALUATION_STEPS = args.evaluation_steps
+EVALUATION_END = args.evaluation_end
 
 # ============================================================
 # Start
@@ -102,6 +150,7 @@ Console.section("Evaluating Kalman Model")
 evaluator = ForecastEvaluator(
     evaluation_steps=EVALUATION_STEPS,
     preprocessor=TemporalPreprocessor(),
+    evaluation_end=EVALUATION_END,
 )
 
 evaluation_model = KalmanForecaster()
@@ -246,6 +295,39 @@ Console.success(
 )
 
 # ============================================================
+# Save Log
+# ============================================================
+
+log_lines = [
+    "ZenerEstimation",
+    "Kalman Experiment Log",
+    "=" * 60,
+    f"Experiment ID     : {experiment.id}",
+    f"Battery           : {battery}",
+    f"Model             : {MODEL}",
+    f"Framework Version : {FRAMEWORK_VERSION}",
+    f"Forecast Horizon  : {FORECAST_HORIZON}",
+    f"Evaluation Steps  : {evaluation_result.evaluation_steps}",
+    (
+        f"Evaluation End    : "
+        f"{evaluation_result.metadata.get('evaluation_end')}"
+    ),
+    f"RMSE              : {evaluation_result.rmse:.6f}",
+    f"MAE               : {evaluation_result.mae:.6f}",
+    f"MAPE              : {evaluation_result.mape:.6f}%",
+    f"Execution Time    : {experiment.execution_time:.3f} s",
+    f"Source Type       : {dataset.source_type}",
+    f"Rows              : {summary['rows']}",
+    f"Observed Rows     : {dataset.observed_rows}",
+    f"Missing Periods   : {dataset.missing_period_count}",
+]
+
+paths.log.write_text(
+    "\n".join(log_lines) + "\n",
+    encoding="utf-8",
+)
+
+# ============================================================
 # Save Experiment
 # ============================================================
 
@@ -279,9 +361,27 @@ save_metadata(
 # Save Forecast
 # ============================================================
 
+forecast_payload = {
+    "model": result.model,
+    "horizon": result.horizon,
+    "dates": [
+        date.strftime("%Y-%m-%d")
+        for date in result.dates
+    ],
+    "forecast": [
+        float(value)
+        for value in result.forecast
+    ],
+    "metadata": dict(
+        result.metadata
+    )
+    if result.metadata
+    else {},
+}
+
 save_metadata(
     paths.forecast,
-    result.summary(),
+    forecast_payload,
 )
 
 # ============================================================

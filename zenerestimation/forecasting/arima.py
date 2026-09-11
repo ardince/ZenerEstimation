@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 
 from zenerestimation.forecasting.base import BaseForecastModel
@@ -62,19 +61,9 @@ class ARIMAForecaster(BaseForecastModel):
             steps=steps
         )
 
-        last_date = self.dataset.data["ds"].iloc[-1]
-
-        #freq = self.dataset.frequency
-        freq = pd.infer_freq(self.dataset.data["ds"])
-
-        if freq is None:
-            freq = "QS-JAN"
-
-        dates = pd.date_range(
-            start=last_date,
-            periods=steps + 1,
-            freq=freq,
-        )[1:]
+        dates = self.dataset.forecast_dates(
+            steps
+        )
 
         return ForecastResult(
             model="ARIMA",

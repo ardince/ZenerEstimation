@@ -133,3 +133,26 @@ def test_summary():
     summary = model.summary
 
     assert summary is not None
+
+
+def test_arima_predict_uses_dataset_forecast_dates():
+
+    dataset = create_dataset()
+
+    model = ARIMAForecaster(
+        order=(1, 1, 0)
+    )
+
+    model.fit(dataset)
+
+    result = model.predict(
+        4
+    )
+
+    expected = dataset.forecast_dates(
+        4
+    )
+
+    assert list(result.dates) == list(
+        expected
+    )

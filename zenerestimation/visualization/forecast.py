@@ -5,9 +5,7 @@ Provides a generic plotting interface for all forecasting models.
 """
 
 from __future__ import annotations
-from multiprocessing.util import info
 
-from matplotlib import lines
 import matplotlib.pyplot as plt
 
 
@@ -48,21 +46,11 @@ class ForecastPlot:
 
     def _build_experiment_info(self):
         """
-        Build experiment/evaluation information
+        Build dataset/forecast/evaluation information
         displayed inside the forecast figure.
         """
 
         lines = []
-
-        # --------------------------------------------------------
-        # Experiment ID
-        # --------------------------------------------------------
-
-        if self.experiment is not None:
-
-            lines.append(
-                f"Experiment #{self.experiment.id}"
-            )
 
         # --------------------------------------------------------
         # Missing periods
@@ -70,14 +58,35 @@ class ForecastPlot:
 
         summary = self.dataset.summary()
 
-        missing_periods = summary.get(
-            "missing_periods"
+        missing_period_count = getattr(
+            self.dataset,
+            "missing_period_count",
+            None,
         )
 
-        if missing_periods is not None:
+        if missing_period_count is None:
+            missing_period_count = summary[
+                "missing_periods"
+            ]
+
+        lines.append(
+            f"Missing Periods: {missing_period_count}"
+        )
+
+        # --------------------------------------------------------
+        # Forecast horizon
+        # --------------------------------------------------------
+
+        horizon = getattr(
+            self.result,
+            "horizon",
+            None,
+        )
+
+        if horizon is not None:
 
             lines.append(
-                f"Missing Periods: {missing_periods}"
+                f"Horizon: {horizon} quarters"
             )
 
         # --------------------------------------------------------
@@ -86,27 +95,15 @@ class ForecastPlot:
 
         if self.evaluation:
 
-            steps = self.evaluation.get(
-                "evaluation_steps"
-            )
-
             rmse = self.evaluation.get(
                 "rmse"
             )
 
-            if steps is not None:
-
-                lines.append(
-                    f"Holdout: {steps} quarters"
-                )
-
             if rmse is not None:
 
                 lines.append(
-                    f"RMSE: {rmse:.4f} µV"
+                    f"RMSE: {rmse:.2f} µV"
                 )
-
-            
 
         return "\n".join(lines)
 

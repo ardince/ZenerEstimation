@@ -17,7 +17,6 @@ Usage:
 from pathlib import Path
 from time import perf_counter
 import argparse
-#import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
 from zenerestimation.forecasting.arima import ARIMAForecaster
@@ -35,6 +34,7 @@ from zenerestimation.utils.results import (
 from zenerestimation.utils.report_writer import ReportWriter
 
 from zenerestimation.evaluation import ForecastEvaluator
+from zenerestimation.data.temporal import TemporalPreprocessor
 
 # ============================================================
 # Configuration
@@ -75,6 +75,15 @@ def parse_args():
         help="Number of final observations reserved for holdout evaluation.",
     )
 
+    parser.add_argument(
+        "--evaluation-end",
+        default=None,
+        help=(
+            "Last date included in holdout evaluation "
+            "(YYYY-MM-DD)."
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -85,7 +94,7 @@ def parse_args():
 def resolve_dataset(battery):
 
     path = Path(
-        f"datasets/raw/{battery}.csv"
+        f"datasets/processed/{battery}.csv"
     )
 
     if not path.exists():
@@ -96,87 +105,6 @@ def resolve_dataset(battery):
 
     return path
 
-# ============================================================
-# RMSE, MAE, MAPE Computation
-# ============================================================
-
-#def compute_rmse(
-    actual,
-    predicted,
-#):
-    actual = np.asarray(
-        actual,
-        dtype=float,
-    )
-
-    predicted = np.asarray(
-        predicted,
-        dtype=float,
-    )
-
-    return float(
-        np.sqrt(
-            np.mean(
-                (actual - predicted) ** 2
-            )
-        )
-    )
-
-
-#def compute_mae(
-    actual,
-    predicted,
-#):
-    actual = np.asarray(
-        actual,
-        dtype=float,
-    )
-
-    predicted = np.asarray(
-        predicted,
-        dtype=float,
-    )
-
-    return float(
-        np.mean(
-            np.abs(
-                actual - predicted
-            )
-        )
-    )
-
-
-#def compute_mape(
-    actual,
-    predicted,
-#):
-    actual = np.asarray(
-        actual,
-        dtype=float,
-    )
-
-    predicted = np.asarray(
-        predicted,
-        dtype=float,
-    )
-
-    mask = actual != 0
-
-    if not np.any(mask):
-        return None
-
-    return float(
-        np.mean(
-            np.abs(
-                (
-                    actual[mask]
-                    - predicted[mask]
-                )
-                / actual[mask]
-            )
-        )
-        * 100.0
-    )
 
 # ============================================================
 # Main
@@ -189,6 +117,7 @@ def main():
     battery = args.battery
     horizon = args.horizon
     evaluation_steps = args.evaluation_steps
+    evaluation_end = args.evaluation_end
     dataset_path = resolve_dataset(
         battery
     )
@@ -208,7 +137,7 @@ def main():
         "Loading Dataset"
     )
 
-    dataset = BatteryDataset.from_csv(
+    dataset = BatteryDataset.from_processed_csv(
         dataset_path
     )
 
@@ -222,12 +151,23 @@ def main():
 
     print(
         f"Battery           : "
-        f"{dataset.metadata['battery_id']}"
+        f"{dataset.battery}"
     )
+
+    print(
+        f"Source Type       : "
+        f"{dataset.source_type}"
+    )
+
 
     print(
         f"Measurements      : "
         f"{summary['rows']}"
+    )
+
+    print(
+        f"Observed Rows     : "
+        f"{dataset.observed_rows}"
     )
 
     print(
@@ -244,7 +184,7 @@ def main():
 
     print(
         f"Missing Periods   : "
-        f"{summary['missing_periods']}"
+        f"{dataset.missing_period_count}"
     )
 
     print()
@@ -259,7 +199,9 @@ def main():
     )
 
     evaluator = ForecastEvaluator(
-        evaluation_steps=evaluation_steps
+        evaluation_steps=evaluation_steps,
+        preprocessor=TemporalPreprocessor(),
+        evaluation_end=evaluation_end,
     )
 
     evaluation_model = ARIMAForecaster()
@@ -309,10 +251,15 @@ def main():
         "Training ARIMA Model"
     )
 
+    forecast_dataset = (
+        TemporalPreprocessor()
+        .fit_transform(dataset)
+    )
+
     model = ARIMAForecaster()
 
     result = model.fit_predict(
-        dataset,
+        forecast_dataset,
         steps=horizon,
     )
 

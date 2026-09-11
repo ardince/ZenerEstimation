@@ -82,8 +82,39 @@ class ReportWriter:
 
             summary = dataset.summary()
 
+            # -----------------------------------------------------
+            # Processed-dataset-aware statistics
+            # -----------------------------------------------------
+
+            observed_rows = getattr(
+                dataset,
+                "observed_rows",
+                None,
+            )
+
+            missing_period_count = getattr(
+                dataset,
+                "missing_period_count",
+                None,
+            )
+
+            if missing_period_count is None:
+                missing_period_count = summary[
+                    "missing_periods"
+                ]
+
+            # -----------------------------------------------------
+            # Dataset summary
+            # -----------------------------------------------------
+
             f.write(
                 f"Rows             : {summary['rows']}\n"
+            )
+
+            if observed_rows is not None:
+
+                f.write(
+                f"Observed Rows    : {observed_rows}\n"
             )
 
             f.write(
@@ -100,7 +131,7 @@ class ReportWriter:
 
             f.write(
                 f"Missing Periods  : "
-                f"{summary['missing_periods']}\n"
+                f"{missing_period_count}\n"
             )
 
             f.write(

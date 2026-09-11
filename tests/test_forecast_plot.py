@@ -213,9 +213,10 @@ def test_experiment_info_contains_metrics():
 
     info = plot._build_experiment_info()
 
-    assert "Holdout: 6 quarters" in info
-    assert "RMSE: 0.4200" in info
-    assert "Missing Periods:" in info
+    assert "Horizon: 2 quarters" in info
+    assert "Holdout:" not in info
+    assert "RMSE: 0.42 µV" in info
+    assert "Missing Periods: 0" in info
 
     assert "MAE" not in info
     assert "MAPE" not in info

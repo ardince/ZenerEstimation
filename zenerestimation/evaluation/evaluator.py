@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from zenerestimation.data.dataset import BatteryDataset
 from zenerestimation.evaluation.result import EvaluationResult
@@ -51,6 +52,7 @@ class ForecastEvaluator:
         evaluation_steps: int = 6,
         *,
         preprocessor=None,
+        evaluation_end=None,
     ) -> None:
 
         if (
@@ -96,6 +98,12 @@ class ForecastEvaluator:
 
         self.preprocessor = (
             preprocessor
+        )
+
+        self.evaluation_end = (
+            pd.Timestamp(evaluation_end)
+            if evaluation_end is not None
+            else None
         )
 
     # --------------------------------------------------------
@@ -244,6 +252,10 @@ class ForecastEvaluator:
                 "preprocessing": (
                     self._preprocessing_metadata()
                 ),
+
+                "evaluation_end": (
+                    str(validation_df["ds"].iloc[-1].date())
+                ),
             },
         )
 
@@ -266,19 +278,51 @@ class ForecastEvaluator:
 
         self._validate_dataset(dataset)
 
+        data = dataset.data.copy()
+
+        # -----------------------------------------------------
+        # Optional evaluation endpoint
+        # -----------------------------------------------------
+
+        if self.evaluation_end is not None:
+
+            data = data.loc[
+                data["ds"] <= self.evaluation_end
+            ].copy()
+
+            if data.empty:
+                raise ValueError(
+                    "evaluation_end is earlier than "
+                    "the available dataset."
+                )
+
+        # -----------------------------------------------------
+        # Validate history length
+        # -----------------------------------------------------
+
+        if len(data) <= self.evaluation_steps:
+            raise ValueError(
+                "dataset must contain more rows than "
+                "evaluation_steps"
+            )
+
+        # -----------------------------------------------------
+        # Holdout split
+        # -----------------------------------------------------        
+
         split_index = (
-            len(dataset)
+            len(data)
             - self.evaluation_steps
         )
 
         train_df = (
-            dataset.data
+            data
             .iloc[:split_index]
             .copy()
         )
 
         validation_df = (
-            dataset.data
+            data
             .iloc[split_index:]
             .copy()
         )
