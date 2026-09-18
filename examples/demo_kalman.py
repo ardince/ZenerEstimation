@@ -39,11 +39,6 @@ from zenerestimation.utils.console import Console
 
 FRAMEWORK_VERSION = "0.12.0"
 
-DEFAULT_BATTERY = "732B-5610110"
-DEFAULT_HORIZON = 6
-DEFAULT_EVALUATION_STEPS = 5
-DEFAULT_EVALUATION_END = None
-
 MODEL = "Kalman"
 
 
@@ -58,27 +53,27 @@ def parse_args():
 
     parser.add_argument(
         "--battery",
-        default=DEFAULT_BATTERY,
+        required=True,
         help="Battery dataset identifier.",
     )
 
     parser.add_argument(
         "--horizon",
         type=int,
-        default=DEFAULT_HORIZON,
+        default=6,
         help="Forecast horizon in quarters.",
     )
 
     parser.add_argument(
         "--evaluation-steps",
         type=int,
-        default=DEFAULT_EVALUATION_STEPS,
+        default=None,
         help="Number of holdout quarters.",
     )
 
     parser.add_argument(
         "--evaluation-end",
-        default=DEFAULT_EVALUATION_END,
+        default=None,
         help=(
             "Last date included in holdout evaluation "
             "(YYYY-MM-DD)."
@@ -96,6 +91,37 @@ DATASET = Path(
 FORECAST_HORIZON = args.horizon
 EVALUATION_STEPS = args.evaluation_steps
 EVALUATION_END = args.evaluation_end
+
+EVALUATION_DEFAULTS = {
+    "732B-5610110": {
+        "steps": 5,
+        "end": "2024-03-01",
+    },
+    "732B-5610410": {
+        "steps": 6,
+        "end": None,
+    },
+}
+
+defaults = EVALUATION_DEFAULTS.get(
+    args.battery,
+    {
+        "steps": 6,
+        "end": None,
+    },
+)
+
+evaluation_steps = (
+    args.evaluation_steps
+    if args.evaluation_steps is not None
+    else defaults["steps"]
+)
+
+evaluation_end = (
+    args.evaluation_end
+    if args.evaluation_end is not None
+    else defaults["end"]
+)
 
 # ============================================================
 # Start
@@ -148,9 +174,9 @@ print()
 Console.section("Evaluating Kalman Model")
 
 evaluator = ForecastEvaluator(
-    evaluation_steps=EVALUATION_STEPS,
+    evaluation_steps=evaluation_steps,
     preprocessor=TemporalPreprocessor(),
-    evaluation_end=EVALUATION_END,
+    evaluation_end=evaluation_end,
 )
 
 evaluation_model = KalmanForecaster()

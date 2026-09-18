@@ -2,13 +2,13 @@
 ============================================================
 
 ZenerEstimation
-Official ARIMA Forecast Demonstration
+Standardized GRU Forecast Demonstration
 
 Usage:
 
-    python examples/demo_arima.py \
+    python examples/demo_gru_standardized.py \
         --battery 732B-5610410 \
-        --horizon 6
+        --horizon 6 \
         --evaluation-steps 6
 
 ============================================================
@@ -19,7 +19,9 @@ from time import perf_counter
 import argparse
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.forecasting.arima import ARIMAForecaster
+from zenerestimation.forecasting.neural.gru import (
+    GRUForecaster,
+)
 from zenerestimation.visualization.forecast import ForecastPlot
 from zenerestimation.experiment import Experiment
 from zenerestimation.utils.registry import ExperimentRegistry
@@ -36,13 +38,14 @@ from zenerestimation.utils.report_writer import ReportWriter
 from zenerestimation.evaluation import ForecastEvaluator
 from zenerestimation.data.temporal import TemporalPreprocessor
 
+
 # ============================================================
 # Configuration
 # ============================================================
 
 FRAMEWORK_VERSION = "0.12.0"
 
-MODEL = "ARIMA"
+MODEL = "GRU"
 
 
 EVALUATION_DEFAULTS = {
@@ -57,6 +60,15 @@ EVALUATION_DEFAULTS = {
 }
 
 
+GRU_CONFIG = {
+    "window": 4,
+    "units": 32,
+    "epochs": 100,
+    "batch_size": 8,
+    "seed": 42,
+}
+
+
 # ============================================================
 # Arguments
 # ============================================================
@@ -64,7 +76,7 @@ EVALUATION_DEFAULTS = {
 def parse_args():
 
     parser = argparse.ArgumentParser(
-        description="ZenerEstimation ARIMA demonstration"
+        description="ZenerEstimation standardized LSTM demonstration"
     )
 
     parser.add_argument(
@@ -83,9 +95,11 @@ def parse_args():
     parser.add_argument(
         "--evaluation-steps",
         type=int,
-        #default=6,
         default=None,
-        help="Number of final observations reserved for holdout evaluation.",
+        help=(
+            "Number of final observations reserved "
+            "for holdout evaluation."
+        ),
     )
 
     parser.add_argument(
@@ -120,6 +134,24 @@ def resolve_dataset(battery):
 
 
 # ============================================================
+# Model Factory
+# ============================================================
+
+def create_gru_model():
+    """
+    Create a fresh GRU model using the official
+    demonstration configuration.
+
+    Separate model instances are used for holdout
+    evaluation and final full-data forecasting.
+    """
+
+    return GRUForecaster(
+        **GRU_CONFIG,
+    )
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -129,14 +161,13 @@ def main():
 
     battery = args.battery
     horizon = args.horizon
-    evaluation_steps = args.evaluation_steps
-    evaluation_end = args.evaluation_end
+
     dataset_path = resolve_dataset(
         battery
     )
 
     defaults = EVALUATION_DEFAULTS.get(
-        args.battery,
+        battery,
         {
             "steps": 6,
             "end": None,
@@ -157,7 +188,7 @@ def main():
 
 
     Console.header(
-        "Official ARIMA Forecast Demonstration"
+        "Official GRU Forecast Demonstration"
     )
 
     start = perf_counter()
@@ -193,7 +224,6 @@ def main():
         f"{dataset.source_type}"
     )
 
-
     print(
         f"Measurements      : "
         f"{summary['rows']}"
@@ -225,11 +255,47 @@ def main():
 
 
     # ========================================================
+    # Model Configuration
+    # ========================================================
+
+    Console.section(
+        "GRU Configuration"
+    )
+
+    print(
+        f"Window            : "
+        f"{GRU_CONFIG['window']}"
+    )
+
+    print(
+        f"Units             : "
+        f"{GRU_CONFIG['units']}"
+    )
+
+    print(
+        f"Epochs            : "
+        f"{GRU_CONFIG['epochs']}"
+    )
+
+    print(
+        f"Batch Size        : "
+        f"{GRU_CONFIG['batch_size']}"
+    )
+
+    print(
+        f"Seed              : "
+        f"{GRU_CONFIG['seed']}"
+    )
+
+    print()
+
+
+    # ========================================================
     # Holdout Evaluation
     # ========================================================
 
     Console.section(
-        "Evaluating ARIMA Model"
+        "Evaluating GRU Model"
     )
 
     evaluator = ForecastEvaluator(
@@ -238,18 +304,22 @@ def main():
         evaluation_end=evaluation_end,
     )
 
-    evaluation_model = ARIMAForecaster()
+    # IMPORTANT:
+    # Use a dedicated model instance for holdout evaluation.
+    # This model is not reused for the final forecast.
+
+    evaluation_model = create_gru_model()
 
     evaluation_result = evaluator.evaluate(
-        dataset,
-        evaluation_model,
+        dataset=dataset,
+        model=evaluation_model,
     )
 
     evaluation = evaluation_result.to_dict()
 
 
     Console.success(
-        "Holdout evaluation completed." 
+        "Holdout evaluation completed."
     )
 
     print()
@@ -282,19 +352,31 @@ def main():
     # ========================================================
 
     Console.section(
-        "Training ARIMA Model"
+        "Training GRU Model"
     )
+
+    # The final forecast intentionally uses all available
+    # observations. Persistent processed datasets retain
+    # missing values, so preprocessing is applied to a copy
+    # before fitting the final model.
 
     forecast_dataset = (
         TemporalPreprocessor()
         .fit_transform(dataset)
     )
 
-    model = ARIMAForecaster()
+    # IMPORTANT:
+    # This is a fresh model instance, independent from the
+    # holdout evaluation model.
 
-    result = model.fit_predict(
-        forecast_dataset,
-        steps=horizon,
+    model = create_gru_model()
+
+    model.fit(
+        forecast_dataset
+    )
+
+    result = model.predict(
+        horizon
     )
 
     Console.success(
@@ -308,7 +390,7 @@ def main():
 
     paths = create_result_files(
         battery=battery,
-        model="arima",
+        model="gru",
     )
 
 
@@ -393,7 +475,7 @@ def main():
     forecast_json = {
 
         "battery": battery,
-        "model": "arima",
+        "model": "gru",
         "experiment_id": experiment.id,
         "horizon": result.horizon,
 
@@ -413,8 +495,9 @@ def main():
 
     save_metadata(
         paths.forecast,
-        forecast_json
+        forecast_json,
     )
+
 
     # ========================================================
     # Save Evaluation
@@ -423,9 +506,10 @@ def main():
     evaluation_json = {
         **evaluation,
         "battery": battery,
-        "model": "arima",
+        "model": "gru",
         "experiment_id": experiment.id,
     }
+
 
     # ========================================================
     # Save Evaluation Metadata
@@ -472,7 +556,7 @@ def main():
 
     plot.plot(
         title=(
-            f"{battery} - ARIMA Forecast"
+            f"{battery} - GRU Forecast"
         )
     )
 
@@ -483,6 +567,7 @@ def main():
     Console.success(
         "Figure saved."
     )
+
 
     # ========================================================
     # Report
@@ -501,6 +586,7 @@ def main():
         evaluation=evaluation_result,
 
     )
+
 
     # ========================================================
     # Final Summary

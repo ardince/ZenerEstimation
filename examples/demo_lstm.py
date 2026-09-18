@@ -4,6 +4,8 @@
 ZenerEstimation
 Official LSTM Forecast Demonstration
 
+Legacy / Raw Dataset Workflow
+
 ============================================================
 """
 
@@ -11,9 +13,10 @@ from pathlib import Path
 from time import perf_counter
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.data.smart_loader import SmartDatasetLoader
 
-from zenerestimation.forecasting.neural.lstm import LSTMForecaster
+from zenerestimation.forecasting.neural.lstm import (
+    LSTMForecaster,
+)
 
 from zenerestimation.visualization.forecast import ForecastPlot
 
@@ -23,7 +26,8 @@ from zenerestimation.utils.registry import ExperimentRegistry
 
 from zenerestimation.utils.results import (
     create_result_files,
-    save_metadata,)
+    save_metadata,
+)
 
 from zenerestimation.utils.report_writer import ReportWriter
 
@@ -34,7 +38,7 @@ from zenerestimation.utils.console import Console
 # Configuration
 # ============================================================
 
-FRAMEWORK_VERSION = "0.8.0"
+FRAMEWORK_VERSION = "0.12.0"
 
 DATASET = Path(
     "datasets/raw/732B-5610110.csv"
@@ -60,24 +64,55 @@ start = perf_counter()
 # Load Dataset
 # ============================================================
 
-Console.section("Loading Dataset")
+Console.section(
+    "Loading Dataset"
+)
 
-dataset = BatteryDataset.from_csv(DATASET)
+dataset = BatteryDataset.from_csv(
+    DATASET
+)
 
 metadata = dataset.metadata
 
-Console.success("Dataset loaded successfully.")
+Console.success(
+    "Dataset loaded successfully."
+)
 
 summary = dataset.summary()
 
 print()
 
-print(f"Battery           : {metadata['battery_id']}")
-print(f"Dataset Format    : {metadata['format']}")
-print(f"Measurements      : {summary['rows']}")
-print(f"Time Span         : {summary['start'].date()}  →  {summary['end'].date()}")
-print(f"Frequency         : {summary['frequency']}")
-print(f"Missing Periods   : {summary['missing_periods']}")
+print(
+    f"Battery           : "
+    f"{metadata['battery_id']}"
+)
+
+print(
+    f"Dataset Format    : "
+    f"{metadata['format']}"
+)
+
+print(
+    f"Measurements      : "
+    f"{summary['rows']}"
+)
+
+print(
+    f"Time Span         : "
+    f"{summary['start'].date()}"
+    f"  →  "
+    f"{summary['end'].date()}"
+)
+
+print(
+    f"Frequency         : "
+    f"{summary['frequency']}"
+)
+
+print(
+    f"Missing Periods   : "
+    f"{summary['missing_periods']}"
+)
 
 print()
 
@@ -86,7 +121,9 @@ print()
 # Forecast
 # ============================================================
 
-Console.section("Training LSTM Model")
+Console.section(
+    "Training LSTM Model"
+)
 
 model = LSTMForecaster(
 
@@ -122,8 +159,16 @@ paths = create_result_files(
     model="lstm",
 )
 
-print("Battery:", dataset.battery)
-print("Metadata:", dataset.metadata)
+print(
+    "Battery:",
+    dataset.battery,
+)
+
+print(
+    "Metadata:",
+    dataset.metadata,
+)
+
 
 # ============================================================
 # Plot
@@ -136,20 +181,29 @@ plot = ForecastPlot(
 
 plot.plot(
 
-    title=f"{battery} - LSTM Forecast\n"
-          f"Forecast Horizon: {FORECAST_HORIZON} Quarters"
+    title=(
+        f"{battery} - LSTM Forecast\n"
+        f"Forecast Horizon: "
+        f"{FORECAST_HORIZON} Quarters"
+    )
 )
 
-plot.save(paths.figure)
+plot.save(
+    paths.figure
+)
 
-Console.success("Figure saved.")
+Console.success(
+    "Figure saved."
+)
 
 
 # ============================================================
 # Finish Timing
 # ============================================================
 
-elapsed = perf_counter() - start
+elapsed = (
+    perf_counter() - start
+)
 
 
 # ============================================================
@@ -172,9 +226,13 @@ experiment = Experiment(
 
         "figure": str(paths.figure),
 
-        "metadata": str(paths.metadata),
+        "forecast": str(paths.forecast),
+
+        "experiment": str(paths.experiment),
 
         "report": str(paths.report),
+
+        "log": str(paths.log),
 
     },
 
@@ -189,7 +247,9 @@ experiment = Experiment(
 
 registry = ExperimentRegistry()
 
-experiment = registry.register(experiment)
+experiment = registry.register(
+    experiment
+)
 
 Console.success(
     f"Experiment #{experiment.id} registered."
@@ -197,10 +257,10 @@ Console.success(
 
 
 # ============================================================
-# Save Metadata
+# Save Experiment
 # ============================================================
 
-metadata_json = {
+experiment_json = {
 
     "experiment": experiment.to_dict(),
 
@@ -208,11 +268,72 @@ metadata_json = {
 
     "forecast": result.summary(),
 
+    "workflow": {
+        "type": "legacy_raw",
+        "dataset_source": "raw",
+        "evaluation": False,
+    },
+
 }
 
 save_metadata(
-    paths.metadata,
-    metadata_json,
+    paths.experiment,
+    experiment_json,
+)
+
+
+# ============================================================
+# Save Forecast
+# ============================================================
+
+forecast_json = {
+
+    "battery": battery,
+
+    "model": "lstm",
+
+    "experiment_id": experiment.id,
+
+    "horizon": result.horizon,
+
+    "dates": [
+        str(date)
+        for date in result.dates
+    ],
+
+    "forecast": [
+        float(value)
+        for value in result.forecast
+    ],
+
+    "metadata": result.summary(),
+
+    "workflow": "legacy_raw",
+
+}
+
+save_metadata(
+    paths.forecast,
+    forecast_json,
+)
+
+
+# ============================================================
+# Save Log
+# ============================================================
+
+paths.log.write_text(
+    (
+        "ZenerEstimation Experiment Log\n"
+        f"Experiment ID: {experiment.id}\n"
+        f"Battery: {battery}\n"
+        f"Model: {MODEL}\n"
+        "Workflow: legacy_raw\n"
+        f"Horizon: {FORECAST_HORIZON}\n"
+        f"Execution Time: {elapsed:.3f} s\n"
+        "Status: completed\n"
+    ),
+    encoding="utf-8",
 )
 
 
@@ -237,42 +358,54 @@ ReportWriter.save(
 # Neural Network Summary
 # ============================================================
 
-Console.section("Neural Network Summary")
+Console.section(
+    "Neural Network Summary"
+)
 
-framework = result.metadata["framework"]
+framework = result.metadata[
+    "framework"
+]
 
 print(
-    f"TensorFlow      : {framework['tensorflow']}"
+    f"TensorFlow      : "
+    f"{framework['tensorflow']}"
 )
 
 print(
-    f"Keras           : {framework['keras']}"
+    f"Keras           : "
+    f"{framework['keras']}"
 )
 
 print(
-    f"Window          : {result.metadata['window']}"
+    f"Window          : "
+    f"{result.metadata['window']}"
 )
 
 print(
-    f"LSTM Units      : {result.metadata['units']}"
+    f"LSTM Units      : "
+    f"{result.metadata['units']}"
 )
 
 print(
-    f"Epochs          : {result.metadata['epochs']}"
+    f"Epochs          : "
+    f"{result.metadata['epochs']}"
 )
 
 print(
-    f"Batch Size      : {result.metadata['batch_size']}"
+    f"Batch Size      : "
+    f"{result.metadata['batch_size']}"
 )
 
 print(
-    f"Seed            : {result.metadata['seed']}"
+    f"Seed            : "
+    f"{result.metadata['seed']}"
 )
 
 print()
 
 print(
-    f"Execution Time  : {elapsed:.2f} s"
+    f"Execution Time  : "
+    f"{elapsed:.2f} s"
 )
 
 
@@ -285,17 +418,26 @@ Console.header(
 )
 
 print(
-    f"Framework Version : {FRAMEWORK_VERSION}"
+    f"Framework Version : "
+    f"{FRAMEWORK_VERSION}"
 )
 
 print(
-    f"Battery           : {battery}"
+    f"Battery           : "
+    f"{battery}"
 )
 
 print(
-    f"Model             : {MODEL}"
+    f"Model             : "
+    f"{MODEL}"
 )
 
 print(
-    f"Forecast Horizon  : {FORECAST_HORIZON} Quarters"
+    f"Forecast Horizon  : "
+    f"{FORECAST_HORIZON} Quarters"
+)
+
+print(
+    f"Result Directory  : "
+    f"{paths.directory}"
 )

@@ -2,14 +2,13 @@
 ============================================================
 
 ZenerEstimation
-Official ARIMA Forecast Demonstration
+Standardized Kalman LSTM Forecast Demonstration
 
 Usage:
 
-    python examples/demo_arima.py \
+    python examples/demo_kalman_lstm_standardized.py \
         --battery 732B-5610410 \
         --horizon 6
-        --evaluation-steps 6
 
 ============================================================
 """
@@ -19,7 +18,15 @@ from time import perf_counter
 import argparse
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.forecasting.arima import ARIMAForecaster
+
+from zenerestimation.forecasting.neural.lstm import (
+    LSTMForecaster,
+)
+
+from zenerestimation.forecasting.hybrid.kalman_lstm import (
+    KalmanLSTMForecaster,
+)
+
 from zenerestimation.visualization.forecast import ForecastPlot
 from zenerestimation.experiment import Experiment
 from zenerestimation.utils.registry import ExperimentRegistry
@@ -36,13 +43,14 @@ from zenerestimation.utils.report_writer import ReportWriter
 from zenerestimation.evaluation import ForecastEvaluator
 from zenerestimation.data.temporal import TemporalPreprocessor
 
+
 # ============================================================
 # Configuration
 # ============================================================
 
 FRAMEWORK_VERSION = "0.12.0"
 
-MODEL = "ARIMA"
+MODEL = "KalmanLSTM"
 
 
 EVALUATION_DEFAULTS = {
@@ -57,6 +65,15 @@ EVALUATION_DEFAULTS = {
 }
 
 
+LSTM_CONFIG = {
+    "window": 4,
+    "units": 32,
+    "epochs": 100,
+    "batch_size": 8,
+    "seed": 42,
+}
+
+
 # ============================================================
 # Arguments
 # ============================================================
@@ -64,7 +81,10 @@ EVALUATION_DEFAULTS = {
 def parse_args():
 
     parser = argparse.ArgumentParser(
-        description="ZenerEstimation ARIMA demonstration"
+        description=(
+            "ZenerEstimation standardized "
+            "KalmanLSTM demonstration"
+        )
     )
 
     parser.add_argument(
@@ -83,9 +103,11 @@ def parse_args():
     parser.add_argument(
         "--evaluation-steps",
         type=int,
-        #default=6,
         default=None,
-        help="Number of final observations reserved for holdout evaluation.",
+        help=(
+            "Number of final observations reserved "
+            "for holdout evaluation."
+        ),
     )
 
     parser.add_argument(
@@ -120,6 +142,27 @@ def resolve_dataset(battery):
 
 
 # ============================================================
+# Model Factory
+# ============================================================
+
+def create_hybrid_model():
+    """
+    Create a fresh KalmanLSTM hybrid.
+
+    Each hybrid owns an independent residual LSTM so
+    evaluation and final forecasting remain isolated.
+    """
+
+    lstm = LSTMForecaster(
+        **LSTM_CONFIG,
+    )
+
+    return KalmanLSTMForecaster(
+        lstm_model=lstm,
+    )
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -129,14 +172,13 @@ def main():
 
     battery = args.battery
     horizon = args.horizon
-    evaluation_steps = args.evaluation_steps
-    evaluation_end = args.evaluation_end
+
     dataset_path = resolve_dataset(
         battery
     )
 
     defaults = EVALUATION_DEFAULTS.get(
-        args.battery,
+        battery,
         {
             "steps": 6,
             "end": None,
@@ -157,7 +199,7 @@ def main():
 
 
     Console.header(
-        "Official ARIMA Forecast Demonstration"
+        "Official KalmanLSTM Forecast Demonstration"
     )
 
     start = perf_counter()
@@ -193,7 +235,6 @@ def main():
         f"{dataset.source_type}"
     )
 
-
     print(
         f"Measurements      : "
         f"{summary['rows']}"
@@ -225,11 +266,57 @@ def main():
 
 
     # ========================================================
+    # Model Configuration
+    # ========================================================
+
+    Console.section(
+        "KalmanLSTM Configuration"
+    )
+
+    print(
+        "Trend Model       : "
+        "Adaptive Kalman Filter"
+    )
+
+    print(
+        "Residual Model    : "
+        "LSTM"
+    )
+
+    print(
+        f"LSTM Window       : "
+        f"{LSTM_CONFIG['window']}"
+    )
+
+    print(
+        f"LSTM Units        : "
+        f"{LSTM_CONFIG['units']}"
+    )
+
+    print(
+        f"LSTM Epochs       : "
+        f"{LSTM_CONFIG['epochs']}"
+    )
+
+    print(
+        f"LSTM Batch Size   : "
+        f"{LSTM_CONFIG['batch_size']}"
+    )
+
+    print(
+        f"LSTM Seed         : "
+        f"{LSTM_CONFIG['seed']}"
+    )
+
+    print()
+
+
+    # ========================================================
     # Holdout Evaluation
     # ========================================================
 
     Console.section(
-        "Evaluating ARIMA Model"
+        "Evaluating KalmanLSTM Model"
     )
 
     evaluator = ForecastEvaluator(
@@ -238,18 +325,22 @@ def main():
         evaluation_end=evaluation_end,
     )
 
-    evaluation_model = ARIMAForecaster()
+    # IMPORTANT:
+    # Use a dedicated model instance for holdout evaluation.
+    # This model is not reused for the final forecast.
+
+    evaluation_model = create_hybrid_model()
 
     evaluation_result = evaluator.evaluate(
-        dataset,
-        evaluation_model,
+        dataset=dataset,
+        model=evaluation_model,
     )
 
     evaluation = evaluation_result.to_dict()
 
 
     Console.success(
-        "Holdout evaluation completed." 
+        "Holdout evaluation completed."
     )
 
     print()
@@ -257,6 +348,16 @@ def main():
     print(
         f"Evaluation Steps  : "
         f"{evaluation_result.evaluation_steps}"
+    )
+
+    print(
+        f"Evaluation End    : "
+        f"{evaluation_end if evaluation_end is not None else 'Latest'}"
+    )
+
+    print(
+        f"Forecast Horizon  : "
+        f"{horizon}"
     )
 
     print(
@@ -282,19 +383,31 @@ def main():
     # ========================================================
 
     Console.section(
-        "Training ARIMA Model"
+        "Training KalmanLSTM Model"
     )
+
+    # The final forecast intentionally uses all available
+    # observations. Persistent processed datasets retain
+    # missing values, so preprocessing is applied to a copy
+    # before fitting the final model.
 
     forecast_dataset = (
         TemporalPreprocessor()
         .fit_transform(dataset)
     )
 
-    model = ARIMAForecaster()
+    # IMPORTANT:
+    # This is a fresh model instance, independent from the
+    # holdout evaluation model.
 
-    result = model.fit_predict(
-        forecast_dataset,
-        steps=horizon,
+    model = create_hybrid_model()
+
+    model.fit(
+        forecast_dataset
+    )
+
+    result = model.predict(
+        horizon
     )
 
     Console.success(
@@ -303,12 +416,104 @@ def main():
 
 
     # ========================================================
+    # Hybrid Diagnostics
+    # ========================================================
+
+    Console.section(
+        "Hybrid Diagnostics"
+    )
+
+    diagnostics_engine = model.diagnostics(
+        forecast_dataset
+    )
+
+    diagnostics_result = (
+        diagnostics_engine.result()
+    )
+
+    diagnostics = (
+        diagnostics_result.summary()
+    )
+
+    Console.success(
+        "Hybrid diagnostics completed."
+    )
+
+    print()
+
+    print(
+        f"Decomposition OK  : "
+        f"{diagnostics['decomposition_ok']}"
+    )
+
+    print(
+        f"Variance Explained: "
+        f"{diagnostics['variance_explained']:.6f}"
+    )
+
+    print(
+        f"Residual Mean     : "
+        f"{diagnostics['residual_mean']:.6f}"
+    )
+
+    print(
+        f"Residual Std      : "
+        f"{diagnostics['residual_std']:.6f}"
+    )
+
+    print(
+        f"Residual RMSE     : "
+        f"{diagnostics['residual_rmse']:.6f}"
+    )
+
+    print(
+        f"Lag-1 Autocorr.   : "
+        f"{diagnostics['lag1_autocorrelation']:.6f}"
+    )
+
+    print(
+        f"Durbin-Watson     : "
+        f"{diagnostics['durbin_watson']:.6f}"
+    )
+
+    print(
+        f"Ljung-Box p-value : "
+        f"{diagnostics['ljung_box_pvalue']:.6f}"
+    )
+
+    print(
+        f"Quality Score     : "
+        f"{diagnostics_result.quality_score:.2f}"
+    )
+
+    print(
+        f"Quality Grade     : "
+        f"{diagnostics_result.quality_grade}"
+    )
+
+    print()
+
+    print(
+        "Recommendations:"
+    )
+
+    for recommendation in (
+        diagnostics_result.recommendations
+    ):
+        print(
+            f"  - {recommendation}"
+        )
+
+    print()
+
+
+    # ========================================================
     # Result Directory
     # ========================================================
 
     paths = create_result_files(
         battery=battery,
-        model="arima",
+        model="kalman_lstm",
     )
 
 
@@ -353,7 +558,34 @@ def main():
 
         },
 
-        metadata=result.summary(),
+        metadata={
+            **result.summary(),
+
+            "workflow": "standardized_processed",
+
+            "diagnostics": {
+                "quality_score":
+                    diagnostics_result.quality_score,
+
+                "quality_grade":
+                    diagnostics_result.quality_grade,
+
+                "variance_explained":
+                    diagnostics["variance_explained"],
+
+                "residual_rmse":
+                    diagnostics["residual_rmse"],
+
+                "lag1_autocorrelation":
+                    diagnostics["lag1_autocorrelation"],
+
+                "durbin_watson":
+                    diagnostics["durbin_watson"],
+
+                "ljung_box_pvalue":
+                    diagnostics["ljung_box_pvalue"],
+            },
+        },
 
     )
 
@@ -393,7 +625,7 @@ def main():
     forecast_json = {
 
         "battery": battery,
-        "model": "arima",
+        "model": "kalman_lstm",
         "experiment_id": experiment.id,
         "horizon": result.horizon,
 
@@ -409,12 +641,17 @@ def main():
 
         "metadata": result.summary(),
 
+        "diagnostics": (
+            diagnostics_result.to_dict()
+        ),
+
     }
 
     save_metadata(
         paths.forecast,
-        forecast_json
+        forecast_json,
     )
+
 
     # ========================================================
     # Save Evaluation
@@ -423,13 +660,9 @@ def main():
     evaluation_json = {
         **evaluation,
         "battery": battery,
-        "model": "arima",
+        "model": "kalman_lstm",
         "experiment_id": experiment.id,
     }
-
-    # ========================================================
-    # Save Evaluation Metadata
-    # ========================================================
 
     save_metadata(
         paths.evaluation,
@@ -448,6 +681,16 @@ def main():
             f"Battery: {battery}\n"
             f"Model: {MODEL}\n"
             f"Horizon: {horizon}\n"
+            f"Evaluation RMSE: "
+            f"{evaluation_result.rmse:.6f}\n"
+            f"Evaluation MAE: "
+            f"{evaluation_result.mae:.6f}\n"
+            f"Evaluation MAPE: "
+            f"{evaluation_result.mape:.6f}%\n"
+            f"Hybrid Quality Score: "
+            f"{diagnostics_result.quality_score:.2f}\n"
+            f"Hybrid Quality Grade: "
+            f"{diagnostics_result.quality_grade}\n"
             f"Execution Time: {elapsed:.3f} s\n"
             "Status: completed\n"
         ),
@@ -464,7 +707,7 @@ def main():
     )
 
     plot = ForecastPlot(
-        dataset,
+        forecast_dataset,
         result,
         experiment=experiment,
         evaluation=evaluation,
@@ -472,7 +715,7 @@ def main():
 
     plot.plot(
         title=(
-            f"{battery} - ARIMA Forecast"
+            f"{battery} - KalmanLSTM Forecast"
         )
     )
 
@@ -483,6 +726,7 @@ def main():
     Console.success(
         "Figure saved."
     )
+
 
     # ========================================================
     # Report
@@ -500,7 +744,10 @@ def main():
 
         evaluation=evaluation_result,
 
+        diagnostics=diagnostics_result,
+
     )
+
 
     # ========================================================
     # Final Summary
@@ -528,6 +775,21 @@ def main():
     print(
         f"Horizon           : "
         f"{horizon} Quarters"
+    )
+
+    print(
+        f"Evaluation RMSE   : "
+        f"{evaluation_result.rmse:.6f}"
+    )
+
+    print(
+        f"Quality Score     : "
+        f"{diagnostics_result.quality_score:.2f}"
+    )
+
+    print(
+        f"Quality Grade     : "
+        f"{diagnostics_result.quality_grade}"
     )
 
     print(

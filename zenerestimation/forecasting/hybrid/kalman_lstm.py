@@ -3,7 +3,6 @@ Kalman + LSTM hybrid forecaster.
 """
 
 from __future__ import annotations
-from importlib.metadata import metadata
 
 from zenerestimation.forecasting import ForecastResult
 
@@ -43,7 +42,7 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
             lstm_model = LSTMForecaster(
             window=window,
-    )
+            )
 
         super().__init__(
 
@@ -55,7 +54,7 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
         self.lstm = lstm_model
 
-        self.window = window
+        #self.window = window
 
         # Step 1: Add internal attributes to store the trend and residuals
         self._trend = None
@@ -72,6 +71,18 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
     # ---------------------------------------------------------
     # Residual preparation
     # ---------------------------------------------------------
+
+    @property
+    def window(self):
+        """
+        Neural residual-model window size.
+
+        The residual model is the single source of truth
+        for neural window configuration.
+        """
+
+        return self.lstm.window
+    
 
     def prepare_residuals(
         self,
@@ -100,6 +111,26 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         residual_df["microVolt"] = residual
 
         self._residual_dataset = BatteryDataset(residual_df)
+
+
+        # Preserve provenance from the training dataset.
+        self._residual_dataset._battery = (
+            dataset.battery
+        )
+
+        self._residual_dataset._source_type = (
+            dataset.source_type
+        )
+
+        self._residual_dataset._source_path = (
+            dataset.source_path
+        )
+
+        # Copy metadata rather than sharing the same
+        # mutable dictionary between datasets.
+        self._residual_dataset.metadata = (
+            dataset.metadata.copy()
+        )
 
         return self._residual_dataset
 
@@ -177,6 +208,70 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         return self._trend_forecast
 
 
+    def fitted_values(self):
+        """
+        Return historical fitted values for the hybrid model.
+
+        Historical hybrid fit is defined as
+
+            Kalman trend
+            +
+            fitted residual LSTM.
+
+        Neural warm-up positions remain NaN.
+        """
+
+        if self.dataset is None:
+            return None
+
+        if self._trend is None:
+            return None
+
+        residual_fitted = getattr(
+            self.residual_model,
+            "fitted",
+            None,
+        )
+
+        if residual_fitted is None:
+            return None
+
+        trend_values = np.asarray(
+            self._trend,
+            dtype=float,
+        ).reshape(-1)
+
+        residual_values = np.asarray(
+            residual_fitted,
+            dtype=float,
+        ).reshape(-1)
+
+        if len(trend_values) != len(
+            residual_values
+        ):
+
+            raise ValueError(
+                "Trend and residual fitted values "
+                "must have identical lengths."
+            )
+
+        fitted = (
+            trend_values
+            +
+            residual_values
+        )
+
+        dates = pd.DatetimeIndex(
+            self.dataset.data["ds"]
+        )
+
+        return pd.Series(
+            fitted,
+            index=dates,
+            name="fitted",
+        )
+
+
     def combine_forecasts(
         self,
         trend_result,
@@ -195,6 +290,11 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
         diagnostics and uncertainty estimation.
         """
 
+        self.validate_component_forecasts(
+            trend_result,
+            residual_result,
+        )
+
         # ---------------------------------------------------------
         # Extract forecast values
         # ---------------------------------------------------------
@@ -208,19 +308,6 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
             residual_result.forecast.values,
             dtype=float,
         )
-
-        # ---------------------------------------------------------
-        # Validate dimensions
-        # ---------------------------------------------------------
-
-        if len(trend_values) != len(residual_values):
-
-            raise ValueError(
-
-                "Trend and residual forecasts must "
-                "have identical forecast horizons."
-
-            )
 
         # ---------------------------------------------------------
         # Hybrid forecast
@@ -270,6 +357,8 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
         )
 
+        fitted = self.fitted_values()
+
         # ---------------------------------------------------------
         # Result
         # ---------------------------------------------------------
@@ -286,10 +375,7 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
             ),
 
-            fitted=pd.Series(
-                self._trend + self._residual,
-                index=self.dataset.data["ds"],
-            ),
+            fitted=fitted,
 
             horizon=trend_result.horizon,
 
@@ -303,10 +389,16 @@ class KalmanLSTMForecaster(BaseHybridForecaster):
 
     def summary_metadata(self):
 
+        """
+        Hybrid-specific model metadata.
+        """
+
         return {
 
             "architecture": "KalmanLSTM",
 
             "trend": "Adaptive Kalman Filter",
+
+            "window": self.window,
 
         }

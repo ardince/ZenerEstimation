@@ -90,10 +90,13 @@ The framework currently supports:
                  │ Temporal / Model    │
                  │ Preprocessing       │
                  │                     │
-                 │ interpolation       │
-                 │ scaling             │
-                 │ windows             │
-                 │ etc.                │
+                 │ universal           │
+                 │ train-only          │
+                 │ temporal            │
+                 │                     │
+                 │ → scaling           │
+                 │ → neural windows    │
+                 │ →ARIMA/Kalman/hybrid│
                  └──────────┬──────────┘
                             │
                             ▼
@@ -899,237 +902,445 @@ Detailed metrics remain available in reports and evaluation artifacts.
 
 ---
 
-# 26. Sprint 12 Architecture
+# 26. Standardized Evaluation Architecture
 
-Sprint 12 focuses on:
+ZenerEstimation uses a common leakage-safe evaluation architecture across classical, neural, and hybrid forecasting models.
 
-> Multi-Model Evaluation Standardization
-
-Its architectural pipeline is:
+The standardized workflow is:
 
 ```text
-Every forecasting model
-        ↓
-same canonical dataset representation
-        ↓
-same leakage-safe holdout protocol
-        ↓
-same evaluation schema
-        ↓
-ResultLoader
-        ↓
-ForecastComparison
-```
-
----
-
-# 27. Sprint 12 Milestone Status
-
-## Sprint 12 — Standardized Forecast Evaluation
-
-Sprint 12 introduced a common evaluation and result pipeline for
-classical forecasting models.
-
-```text
-Processed Dataset
-        ↓
-ForecastEvaluator
-        ↓
-Temporal Holdout Split
-        ↓
-Train-Only TemporalPreprocessor
-        ↓
-Forecast Model
-        ↓
-EvaluationResult
-        ↓
-Standardized Result Artifacts
-        ↓
-ResultLoader / ForecastComparison
-
-
-### Evaluation Architecture
-
-Evaluation Principles
-
-Processed datasets preserve the canonical temporal structure and
-explicitly identify missing observations.
-Temporal preprocessing is fitted only on the training partition.
-Validation targets remain untouched and are never interpolated.
-Historical benchmark windows may be defined using an explicit
-evaluation endpoint.
-Final forecasting uses the complete processed dataset independently
-of the holdout evaluation window.
-Forecast dates are generated centrally by BatteryDataset.
-ARIMA and Kalman use the same standardized evaluation contract.
-
-Standard Result Artifacts
-
-Each experiment produces:
-
-forecast.png
-forecast.json
-evaluation.json
-experiment.json
-report.txt
-experiment.log
-
-The forecast artifact contains the numerical forecast values and dates,
-while the evaluation artifact contains holdout predictions and
-standardized error metrics.
-
-Classical Model Status
-
-| Model  | Processed Data | Standard Evaluation | Standard Artifacts |
-| ------ | -------------- | ------------------- | ------------------ |
-| ARIMA  | ✓              | ✓                   | ✓                  |
-| Kalman | ✓              | ✓                   | ✓                  |
-
-
-```text
-Processed Battery Dataset
+Processed BatteryDataset
         │
         ▼
 ForecastEvaluator
         │
-        ├── Temporal holdout split
+        ▼
+Temporal Holdout Split
         │
-        ├── Training partition
-        │       │
-        │       ▼
-        │   TemporalPreprocessor
-        │       │
-        │       ▼
-        │   Model.fit()
+        ├───────────────┐
+        │               │
+        ▼               ▼
+Training Partition   Validation Partition
+        │               │
+        ▼               │
+TemporalPreprocessor    │
+        │               │
+        ▼               │
+Model.fit()             │
+        │               │
+        ▼               │
+Model.predict() ────────┘
         │
-        └── Untouched validation partition
-                │
-                ▼
-            Model.predict()
-                │
-                ▼
-          EvaluationResult
-                │
-                ├── RMSE
-                ├── MAE
-                ├── MAPE
-                ├── actual values
-                ├── predicted values
-                ├── dates
-                └── preprocessing metadata
+        ▼
+EvaluationResult
+        │
+        ├── RMSE
+        ├── MAE
+        ├── MAPE
+        ├── actual values
+        ├── predicted values
+        ├── dates
+        └── evaluation metadata
 ```
 
-The holdout partition is never interpolated or otherwise transformed by the evaluator.
+The temporal split occurs before any target-derived preprocessing.
 
-Training-only preprocessing is applied after the temporal split, preventing information from future validation periods from leaking into model training.
+The validation partition remains untouched by interpolation, scaling, sequence construction, state estimation, or model fitting.
 
-### Processed Dataset Layer
+This rule applies equally to classical, neural, and hybrid forecasting models.
 
-Canonical datasets are stored under:
+## 26.1 Evaluation and Final Forecasting Are Separate
+
+Standardized demonstrations use separate model instances for evaluation and final forecasting.
 
 ```text
-datasets/processed/
+                    Processed Dataset
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+              ▼                         ▼
+      Holdout Evaluation          Final Forecasting
+              │                         │
+      ForecastEvaluator          Full-data preparation
+              │                         │
+      training partition           fresh model
+              │                         │
+         evaluation fit              fit
+              │                         │
+      holdout prediction          future forecast
+              │                         │
+              ▼                         ▼
+      EvaluationResult           ForecastResult
 ```
 
-Processed datasets preserve the complete temporal structure of the battery measurements.
+The evaluation model is fitted only on the training partition.
 
-Required columns are:
+The final forecasting model is a fresh instance fitted independently using all currently available historical data after temporal preprocessing.
+
+This prevents evaluation state from leaking into final forecasting and keeps the two workflows scientifically distinct.
+
+## 26.2 Historical Evaluation Boundaries
+
+`ForecastEvaluator` supports an explicit evaluation endpoint.
+
+This is required when a processed dataset contains observations later than the intended historical benchmark window.
+
+For example, battery `732B-5610110` uses the established evaluation interval ending:
 
 ```text
-ds
-microVolt
-is_observed
+2024-03-01
 ```
 
-Missing quarterly periods are inserted explicitly and retain:
+with:
 
 ```text
-microVolt = NaN
-is_observed = False
+evaluation_steps = 5
 ```
 
-Persistent processed datasets are not interpolated.
+The final forecasting horizon is independent of the evaluation horizon.
 
-Interpolation is performed only on model-training data through `TemporalPreprocessor`.
+Therefore:
 
-The standard loading path is:
+```text
+evaluation horizon != forecast horizon
+```
+
+is a valid and supported configuration.
+
+---
+
+# 27. Neural Forecasting Architecture
+
+The standardized neural forecasting layer currently contains:
+
+```text
+LSTMForecaster
+GRUForecaster
+```
+
+Both models follow the common neural lifecycle:
+
+```text
+BatteryDataset
+      │
+      ▼
+BaseNeuralForecaster
+      │
+      ├── target extraction
+      │
+      ├── training-only scaling
+      │
+      └── WindowGenerator
+              │
+              ▼
+        Neural Network
+              │
+              ▼
+      Historical Fitted Values
+              │
+              ▼
+       Recursive Forecast
+              │
+              ▼
+        ForecastResult
+```
+
+## 27.1 Neural Scaling
+
+Scaling is model-specific preprocessing.
+
+The scaler is fitted only on the dataset supplied to the neural model.
+
+During standardized holdout evaluation, `ForecastEvaluator` supplies only the training partition to `fit()`.
+
+Therefore validation targets do not participate in scaler fitting.
+
+## 27.2 Window Generation
+
+Neural sequence construction is performed by `WindowGenerator`.
+
+For a configured window length `w`, the first `w` historical positions do not have a complete input sequence.
+
+Historical neural fitted values therefore intentionally preserve:
+
+```text
+NaN, NaN, ..., NaN, fitted values...
+└──── w ────┘
+```
+
+These warm-up values are not filled or fabricated.
+
+## 27.3 Recursive Forecasting
+
+LSTM and GRU future forecasts are generated recursively.
+
+Each predicted value becomes part of the input sequence used to generate the next forecast step.
+
+Future dates are not generated independently by the neural models.
+
+They are obtained through:
 
 ```python
-dataset = BatteryDataset.from_processed_csv(...)
+dataset.forecast_dates(steps)
 ```
 
-### Temporal Preprocessing
+This centralizes temporal alignment across the framework.
 
-`TemporalPreprocessor` performs universal temporal missing-value preparation.
+---
 
-Its responsibilities are intentionally limited to:
+# 28. Hybrid Forecasting Architecture
 
-* internal interpolation of missing training targets;
-* optional edge filling;
-* preservation of `is_observed` provenance;
-* preservation of dataset identity and source metadata.
+Hybrid forecasting separates the measured signal into a trend component and a residual component.
 
-It does not perform model-specific transformations such as scaling, sequence-window creation, ARIMA differencing, Kalman state estimation, or hybrid decomposition.
+The common architecture is:
 
-### Standard Forecasting Contract
+```text
+Observed Signal
+      │
+      ▼
+Trend Extraction
+      │
+      ├──────────────► Trend
+      │
+      ▼
+Residual Series
+      │
+      ▼
+Residual Neural Model
+      │
+      ▼
+Residual Forecast
+      │
+      │
+Trend Forecast
+      │
+      ▼
+Additive Combination
+      │
+      ▼
+Hybrid ForecastResult
+```
 
-Models evaluated by `ForecastEvaluator` expose the common interface:
+The shared framework abstraction is:
+
+```text
+BaseHybridForecaster
+```
+
+The currently standardized hybrid implementations are:
+
+```text
+LinearTrendLSTMForecaster
+KalmanLSTMForecaster
+```
+
+## 28.1 LinearTrendLSTM
+
+`LinearTrendLSTMForecaster` uses:
+
+```text
+Trend Model       : Linear Regression
+Residual Model    : LSTM
+Combination       : Additive
+```
+
+The historical signal is decomposed as:
+
+```text
+measurement = linear trend + residual
+```
+
+The residual series is supplied to the LSTM model.
+
+Future prediction is:
+
+```text
+linear trend forecast
+        +
+residual LSTM forecast
+        =
+hybrid forecast
+```
+
+## 28.2 KalmanLSTM
+
+`KalmanLSTMForecaster` uses:
+
+```text
+Trend Model       : Adaptive Kalman Filter
+Residual Model    : LSTM
+Combination       : Additive
+```
+
+The Kalman filter supplies the historical trend estimate.
+
+The residual is:
+
+```text
+measurement - Kalman trend
+```
+
+The residual series is supplied to the LSTM model.
+
+Future prediction is:
+
+```text
+Kalman trend forecast
+        +
+residual LSTM forecast
+        =
+hybrid forecast
+```
+
+## 28.3 Shared Hybrid Contract
+
+Both hybrid architectures expose the same framework-facing lifecycle:
 
 ```python
 model.fit(dataset)
 model.predict(steps)
+model.diagnostics(dataset)
+model.summary()
 ```
 
-`predict()` returns a `ForecastResult`.
+Both use the same centralized forecast-date contract and return a standard `ForecastResult`.
 
-This separates framework-facing forecasting models from lower-level numerical components.
+Component forecasts must have identical horizons and identical forecast dates before they can be combined.
 
-For example:
+---
+
+# 29. Historical Fitted-Value Contract
+
+Historical fitted values represent model-generated historical estimates.
+
+For hybrid models they must not be reconstructed from the actual residual decomposition.
+
+The correct contract is:
 
 ```text
-AdaptiveKalmanFilter
-    → low-level Kalman filtering component
-
-KalmanForecaster
-    → framework forecasting model
-    → fit(dataset)
-    → predict(steps)
+historical hybrid fitted
+        =
+historical trend
+        +
+historical residual-model fitted
 ```
 
-### Kalman Migration
-
-`KalmanForecaster` is fully integrated with the standardized Sprint 12 evaluation pipeline.
-
-The official Kalman workflow is now:
+This applies to both:
 
 ```text
-BatteryDataset.from_processed_csv()
-        │
-        ├── ForecastEvaluator
-        │       │
-        │       ├── holdout split
-        │       ├── train-only TemporalPreprocessor
-        │       ├── KalmanForecaster.fit()
-        │       └── EvaluationResult
-        │
-        └── full-data TemporalPreprocessor
-                │
-                ▼
-          KalmanForecaster.fit()
-                │
-                ▼
-          future ForecastResult
+LinearTrendLSTM
+KalmanLSTM
 ```
 
-Evaluation fitting and final future forecasting use separate model instances.
+For an LSTM residual model with window length `w`, the first `w` fitted positions remain missing:
 
-The evaluation model is fitted only on the training partition.
+```text
+Trend:
+T0   T1   T2   T3   T4   T5   ...
 
-The final forecasting model is fitted on all currently available historical data.
+Residual LSTM fitted:
+NaN  NaN  NaN  NaN  R4   R5   ...
 
-### Standard Result Artifacts
+Hybrid fitted:
+NaN  NaN  NaN  NaN  T4+R4 T5+R5 ...
+```
 
-Each experiment produces the standardized result structure:
+This behavior is intentional.
+
+Using:
+
+```text
+trend + actual residual
+```
+
+would simply reconstruct the observed measurement:
+
+```text
+trend + (measurement - trend)
+        =
+measurement
+```
+
+and would incorrectly produce a perfect historical fit.
+
+`ForecastPlot` therefore uses genuine model-generated fitted values rather than the original decomposition residual.
+
+---
+
+# 30. Hybrid Diagnostics and Artifact Integration
+
+Hybrid models share the diagnostic engine:
+
+```text
+HybridDiagnostics
+```
+
+The calculation lifecycle is:
+
+```text
+Hybrid Forecaster
+       │
+       ▼
+HybridDiagnostics
+       │
+       ▼
+diagnostic calculations
+       │
+       ▼
+HybridDiagnosticsResult
+```
+
+`HybridDiagnostics` is the calculation engine.
+
+`HybridDiagnosticsResult` provides the stable result representation used by reporting and artifact serialization.
+
+## 30.1 Diagnostic Measures
+
+The current hybrid diagnostic contract includes:
+
+```text
+decomposition verification
+
+trend variance
+
+residual variance
+
+variance explained
+
+residual mean
+
+residual standard deviation
+
+residual RMSE
+
+lag-1 residual autocorrelation
+
+Durbin-Watson statistic
+
+Ljung-Box statistic
+
+Ljung-Box p-value
+
+quality score
+
+quality grade
+
+recommendations
+```
+
+The quality score is bounded by:
+
+```text
+0 <= quality_score <= 100
+```
+
+Diagnostic quality categories provide a compact interpretation of the residual behavior while the underlying numerical diagnostics remain available.
+
+## 30.2 Diagnostic Persistence
+
+Hybrid diagnostics are stored inside the existing standardized artifacts rather than creating a separate diagnostics file.
+
+The standard physical result contract remains:
 
 ```text
 results/
@@ -1144,172 +1355,342 @@ results/
         experiment.log
 ```
 
-`evaluation.json` is generated from `EvaluationResult.to_dict()` and is consumed by `ResultLoader` and `ForecastComparison`.
+For hybrid runs:
 
-### Current Sprint 12 Status
+```text
+forecast.json
+    └── complete diagnostics result
 
-Completed:
+experiment.json
+    └── concise diagnostic summary
 
+report.txt
+    └── human-readable diagnostic interpretation
+
+experiment.log
+    └── quality score and grade
+```
+
+This preserves compatibility with `ExperimentResult` and `ResultLoader`.
+
+## 30.3 Shared Hybrid Artifact Contract
+
+The standardized artifact regression contract is shared by:
+
+```text
+linear_trend_lstm
+kalman_lstm
+```
+
+Both architectures are validated against the same requirements for:
+
+```text
+physical artifact structure
+
+forecast schema
+
+diagnostic schema
+
+evaluation schema
+
+experiment metadata
+
+report contents
+
+log contents
+
+ResultLoader compatibility
+```
+
+Model-specific artifact parsing is therefore not required.
+
+---
+
+# 31. Standardized Model Matrix
+
+The standardized forecasting architecture currently covers:
+
+| Model           | Processed Data | Holdout Evaluation | Final Full-Data Fit | Standard Artifacts | Historical Model Fit | Hybrid Diagnostics |
+| --------------- | -------------- | ------------------ | ------------------- | ------------------ | -------------------- | ------------------ |
+| ARIMA           | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | —                  |
+| Kalman          | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | —                  |
+| LSTM            | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | —                  |
+| GRU             | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | —                  |
+| LinearTrendLSTM | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | ✓                  |
+| KalmanLSTM      | ✓              | ✓                  | ✓                   | ✓                  | ✓                    | ✓                  |
+
+All standardized models participate in the common evaluation and artifact architecture.
+
+The principal distinction is model-specific learning behavior, not evaluation infrastructure.
+
+---
+
+# 32. Standardized Demonstration Architecture
+
+Standardized demonstrations use processed datasets and the common evaluation pipeline.
+
+The general demonstration workflow is:
+
+```text
+BatteryDataset.from_processed_csv()
+              │
+              ├──────────────────────────┐
+              │                          │
+              ▼                          ▼
+      ForecastEvaluator          TemporalPreprocessor
+              │                          │
+       evaluation model               full data
+              │                          │
+              ▼                          ▼
+      EvaluationResult             fresh model
+                                         │
+                                         ▼
+                                      fit()
+                                         │
+                                         ▼
+                                   ForecastResult
+                                         │
+                    ┌────────────────────┼────────────────────┐
+                    │                    │                    │
+                    ▼                    ▼                    ▼
+               ForecastPlot          ReportWriter        Artifacts
+```
+
+Hybrid demonstrations additionally execute:
+
+```text
+model.diagnostics()
+        │
+        ▼
+HybridDiagnosticsResult
+        │
+        ├── report
+        ├── forecast artifact
+        ├── experiment metadata
+        └── experiment log
+```
+
+Legacy raw-data neural demonstrations remain available separately.
+
+They are not treated as equivalent controlled benchmarks because their historical configurations may differ from the standardized demonstrations.
+
+---
+
+# 33. Sprint 12 — Multi-Model Evaluation Standardization
+
+Sprint 12 established the common evaluation foundation.
+
+Its principal contributions were:
+
+* canonical processed-dataset consumption;
 * standardized `EvaluationResult`;
 * standardized `ForecastEvaluator`;
-* leakage-safe temporal holdout evaluation;
-* train-only temporal preprocessing;
-* processed dataset generation and persistence;
-* processed dataset loading through `BatteryDataset`;
+* temporal holdout splitting;
+* leakage-safe training-only temporal preprocessing;
+* centralized forecast-date generation;
 * ARIMA standardized evaluation;
 * Kalman standardized evaluation;
 * standardized evaluation artifacts;
-* standardized comparison compatibility.
+* `ResultLoader` compatibility;
+* `ForecastComparison` compatibility.
 
-Current regression baseline:
+Sprint 12 established the question:
+
+> How should all forecasting models be evaluated under the same data and holdout protocol?
+
+That architecture became the foundation for neural and hybrid integration in Sprint 13.
+
+---
+
+# 34. Sprint 13 — Neural & Hybrid Evaluation Standardization
+
+Sprint 13 extended the standardized Sprint 12 architecture to neural and hybrid forecasting models.
+
+Its principal objectives were:
+
+* harden shared neural infrastructure;
+* standardize LSTM evaluation;
+* standardize GRU evaluation;
+* harden the hybrid forecasting contract;
+* integrate LinearTrendLSTM with `ForecastEvaluator`;
+* integrate KalmanLSTM with `ForecastEvaluator`;
+* establish genuine historical hybrid fitted-value semantics;
+* integrate hybrid diagnostics with reports and artifacts;
+* create standardized processed-data neural demonstrations;
+* create standardized processed-data hybrid demonstrations;
+* establish shared hybrid artifact regression coverage;
+* preserve compatibility with legacy neural demonstrations.
+
+## 34.1 Sprint 13 Milestones
 
 ```text
-356 tests passing
+13.1
+    ✓ Neural and hybrid contract audit
+
+13.2
+    ✓ Neural infrastructure hardening
+
+13.3
+    ✓ LSTM standard evaluation integration
+
+13.4
+    ✓ GRU standard evaluation integration
+
+13.5
+    ✓ Hybrid contract hardening
+
+13.6
+    ✓ Hybrid evaluation integration
+
+13.7A
+    ✓ Standardized LSTM demonstration
+
+13.7B
+    ✓ Standardized GRU demonstration
+
+13.7C
+    ✓ Standardized LinearTrendLSTM demonstration
+    ✓ historical fitted-value contract
+    ✓ diagnostics integration
+    ✓ artifact regression
+
+13.7D
+    ✓ Standardized KalmanLSTM demonstration
+    ✓ historical fitted-value contract
+    ✓ diagnostics integration
+    ✓ shared artifact regression
+
+13.7E
+    ✓ Architecture and regression review
 ```
 
-Next model migrations:
+## 34.2 Sprint 13 Regression Baseline
+
+The Sprint 13 closure regression baseline is:
 
 ```text
+517 tests passing
+```
+
+This baseline covers classical, neural, hybrid, evaluation, diagnostics, artifact, loading, reporting, and compatibility behavior.
+
+## 34.3 Sprint 13 Architectural Outcome
+
+At Sprint 13 closure:
+
+```text
+ARIMA
+Kalman
 LSTM
 GRU
-Kalman-LSTM hybrid
+LinearTrendLSTM
+KalmanLSTM
 ```
+
+all participate in the standardized processed-data forecasting architecture.
+
+The common contract is:
+
+```text
+canonical processed data
+        ↓
+leakage-safe evaluation
+        ↓
+standard EvaluationResult
+        ↓
+independent final forecasting
+        ↓
+standard ForecastResult
+        ↓
+standard artifacts
+        ↓
+ResultLoader / comparison / reporting
+```
+
+Hybrid models extend this contract with standardized decomposition diagnostics without changing the underlying artifact structure.
 
 ---
 
-# 28. Next Milestone — 2A.5
+# 35. Future Work
 
-The next planned component is:
+Model optimization is intentionally separate from the evaluation-standardization work completed in Sprints 12 and 13.
 
-```text
-Train-Only Temporal Preprocessing
-```
+Future work may include:
 
-Its purpose is to prepare model-ready training data after the evaluation split.
+* ARIMA order optimization;
+* Kalman Q/R tuning;
+* LSTM hyperparameter optimization;
+* GRU hyperparameter optimization;
+* hybrid residual-model optimization;
+* neural window-size search;
+* unit-size search;
+* repeated neural runs;
+* forecast stability analysis;
+* rolling-origin validation;
+* hyperparameter ranking;
+* controlled raw-versus-processed experiments using identical model configurations;
+* standardized multi-model benchmark reports;
+* experiment reproducibility manifests;
+* release and package hardening.
 
-Expected architecture:
-
-```text
-BatteryDataset
-      │
-      ▼
-ForecastEvaluator
-      │
-      ▼
-train / holdout split
-      │
-      ▼
-TRAIN ONLY
-      │
-      ▼
-TemporalPreprocessor
-      │
-      ├── missing-value handling
-      └── universal temporal preparation
-      │
-      ▼
-model-specific preprocessing
-```
-
-For neural models this may subsequently feed:
-
-```text
-scaling
-window generation
-sequence construction
-```
-
-These operations must never be fitted using holdout values.
+Optimization should build on the established evaluation contract rather than introduce a separate evaluation path.
 
 ---
 
-# 29. Planned Sprint 12 Sequence
+# 36. Core Architectural Principle
 
-```text
-Milestone 1
-    ✓ shared evaluation framework
-
-Milestone 2A
-    ✓ processed dataset standardization
-    ✓ persistence
-    ✓ consumption
-    → train-only temporal preprocessing
-
-Milestone 2B
-    Adaptive Kalman evaluation migration
-
-Milestone 3
-    LSTM evaluation migration
-    GRU evaluation migration
-
-Milestone 4
-    Kalman-LSTM evaluation migration
-
-Milestone 5
-    true multi-model comparison
-```
-
----
-
-# 30. Future Sprint — Model Optimization
-
-Model optimization is intentionally separated from Sprint 12.
-
-A later sprint will address:
-
-* ARIMA order optimization,
-* Kalman Q/R tuning,
-* LSTM window optimization,
-* GRU window optimization,
-* neural unit-size search,
-* scaling strategies,
-* repeated neural runs,
-* forecast stability,
-* rolling-origin validation,
-* hyperparameter ranking.
-
-The separation is deliberate:
-
-```text
-Sprint 12
-"What is the common data and evaluation protocol?"
-
-Sprint 13
-"What model configuration performs best under that protocol?"
-```
-
----
-
-# 31. Core Architectural Principle
-
-The framework now distinguishes three fundamentally different stages:
+ZenerEstimation distinguishes four stages:
 
 ```text
 1. Structural Processing
 
 raw measurements
-    ↓
+        ↓
 canonical timeline
+        ↓
+observation provenance
 ```
 
 ```text
 2. Evaluation-Safe Preparation
 
 canonical timeline
-    ↓
+        ↓
 holdout split
-    ↓
-training-only transformations
+        ↓
+training-only temporal transformations
 ```
 
 ```text
 3. Model-Specific Learning
 
 prepared training data
-    ↓
+        ↓
+model-specific transformations
+        ↓
 forecasting model
-    ↓
-standard evaluation result
+        ↓
+ForecastResult
 ```
 
-This separation is the foundation for reproducible and scientifically comparable battery degradation forecasting in ZenerEstimation.
+```text
+4. Standardized Interpretation
+
+ForecastResult
+        +
+EvaluationResult
+        +
+optional diagnostics
+        ↓
+reports / plots / artifacts
+        ↓
+ResultLoader
+        ↓
+comparison and prognostics
+```
+
+The governing principle is:
+
+> Structural preparation defines what the data are. Evaluation-safe preparation defines what information the model is allowed to see. Model-specific learning defines how forecasts are generated. Standardized interpretation defines how those forecasts are evaluated, stored, compared, and communicated.
+
+This separation is the foundation for reproducible, leakage-safe, and scientifically comparable battery degradation forecasting in ZenerEstimation.

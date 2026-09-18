@@ -4,6 +4,8 @@ Base infrastructure for hybrid forecasting models.
 
 from __future__ import annotations
 
+import pandas as pd
+
 from abc import ABC, abstractmethod
 
 from zenerestimation.forecasting import ForecastResult
@@ -170,3 +172,50 @@ class BaseHybridForecaster(ABC):
             dataset = self.dataset
 
         return HybridDiagnostics(self).run(dataset)
+
+
+    def validate_component_forecasts(
+        self,
+        trend_result,
+        residual_result,
+    ):
+        """
+        Validate agreement between hybrid forecast components.
+
+        Trend and residual forecasts must describe exactly
+        the same forecast horizon and timestamps before they
+        can be combined.
+
+        Parameters
+        ----------
+        trend_result : ForecastResult
+            Forecast produced by the trend component.
+
+        residual_result : ForecastResult
+            Forecast produced by the residual component.
+
+        Raises
+        ------
+        ValueError
+            If component horizons or forecast dates differ.
+        """
+
+        if trend_result.horizon != residual_result.horizon:
+            raise ValueError(
+                "hybrid component horizon mismatch: "
+                f"trend={trend_result.horizon}, "
+                f"residual={residual_result.horizon}"
+            )
+
+        trend_dates = pd.DatetimeIndex(
+            trend_result.dates
+        )
+
+        residual_dates = pd.DatetimeIndex(
+            residual_result.dates
+        )
+
+        if not trend_dates.equals(residual_dates):
+            raise ValueError(
+                "hybrid component dates do not match"
+            )

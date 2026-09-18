@@ -22,6 +22,11 @@ class WindowGenerator:
 
         self.window = int(window)
 
+        if self.window <= 0:
+            raise ValueError(
+                "window must be greater than zero"
+            )
+
     def transform(
         self,
         values,
@@ -29,19 +34,30 @@ class WindowGenerator:
         """
         Convert a sequence into supervised learning windows.
 
+        Parameters
+        ----------
+        values : array-like
+            One-dimensional time-series values.
+
         Returns
         -------
         X : ndarray
-            Shape (samples, window, 1)
+            Shape (samples, window, 1).
 
         y : ndarray
-            Shape (samples,)
+            Shape (samples,).
         """
 
         values = np.asarray(
             values,
             dtype=float,
-        )
+        ).reshape(-1)
+
+        if len(values) <= self.window:
+            raise ValueError(
+                "sequence length must be greater than "
+                "the window size"
+            )
 
         X = []
         y = []
@@ -62,11 +78,17 @@ class WindowGenerator:
                 ]
             )
 
-        X = np.asarray(X)
+        X = np.asarray(
+            X,
+            dtype=float,
+        )
 
-        y = np.asarray(y)
+        y = np.asarray(
+            y,
+            dtype=float,
+        )
 
-        # TensorFlow expects
+        # TensorFlow expects:
         # (samples, timesteps, features)
 
         X = X.reshape(
@@ -80,7 +102,5 @@ class WindowGenerator:
     def summary(self):
 
         return {
-
             "window": self.window,
-
         }
