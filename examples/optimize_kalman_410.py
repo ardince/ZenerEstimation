@@ -1,0 +1,601 @@
+"""
+Real-data Kalman optimization demonstration.
+
+Battery:
+    732B-5610410
+
+Workflow:
+    processed dataset
+        -> final benchmark boundary
+        -> development-only temporal optimization
+        -> untouched final benchmark evaluation
+"""
+
+from __future__ import annotations
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=(
+        "Non-invertible starting MA "
+        "parameters found.*"
+    ),
+    category=UserWarning,
+)
+
+warnings.filterwarnings(
+    "ignore",
+    message=(
+        "Non-stationary starting "
+        "autoregressive parameters found.*"
+    ),
+    category=UserWarning,
+)
+
+from pathlib import Path
+
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+
+from zenerestimation.data.dataset import BatteryDataset
+from zenerestimation.data.temporal.preprocessor import (
+    TemporalPreprocessor,
+)
+from zenerestimation.evaluation.evaluator import (
+    ForecastEvaluator,
+)
+from zenerestimation.forecasting.kalman import (
+    KalmanForecaster,
+)
+
+from zenerestimation.optimization import (
+    KalmanParameterSpace,
+    BenchmarkBoundary,
+    ExpandingWindowSplitter,
+    GenericOptimizer,
+    OptimizationEvaluator,
+    OptimizationArtifact,
+)
+
+from zenerestimation.utils.results import (
+    create_result_files,
+    save_metadata,
+)
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
+
+BATTERY = "732B-5610410"
+
+DATA_PATH = Path(
+    "datasets/processed/732B-5610410.csv"
+)
+
+EVALUATION_STEPS = 6
+
+INTERNAL_FOLDS = 3
+INTERNAL_VALIDATION_STEPS = 6
+
+SELECTION_METRIC = "rmse"
+
+KALMAN_DT = 0.25
+KALMAN_ADAPTIVE = True
+
+
+# ---------------------------------------------------------
+# Load processed dataset
+# ---------------------------------------------------------
+
+dataset = BatteryDataset.from_processed_csv(
+    DATA_PATH,
+    battery=BATTERY,
+)
+
+print()
+print("=" * 70)
+print("Kalman OPTIMIZATION — 732B-5610410")
+print("=" * 70)
+
+print()
+print("Complete processed dataset")
+print("-" * 70)
+
+print(
+    f"Rows             : {len(dataset)}"
+)
+
+print(
+    f"Start            : "
+    f"{dataset.data['ds'].iloc[0].date()}"
+)
+
+print(
+    f"End              : "
+    f"{dataset.data['ds'].iloc[-1].date()}"
+)
+
+
+# ---------------------------------------------------------
+# Kalman search space
+# ---------------------------------------------------------
+
+PARAMETER_SPACE = KalmanParameterSpace(
+    process_noise=(
+        1e-4,
+        1e-3,
+        1e-2,
+    ),
+    drift_noise=(
+        1e-5,
+        1e-4,
+        1e-3,
+    ),
+    regime_factor=(
+        2.0,
+        2.5,
+        3.0,
+    ),
+    regime_multiplier=(
+        5.0,
+        10.0,
+    ),
+)
+
+
+def model_factory(**params):
+    return KalmanForecaster(
+        dt=KALMAN_DT,
+        adaptive=KALMAN_ADAPTIVE,
+        **params,
+    )
+
+
+# ---------------------------------------------------------
+# Final benchmark boundary
+# ---------------------------------------------------------
+
+boundary = BenchmarkBoundary(
+    evaluation_steps=EVALUATION_STEPS,
+)
+
+development = (
+    boundary.development_dataset(
+        dataset
+    )
+)
+
+benchmark = (
+    boundary.benchmark_data(
+        dataset
+    )
+)
+
+print()
+print("Benchmark boundary")
+print("-" * 70)
+
+print(
+    f"Development rows : {len(development)}"
+)
+
+print(
+    f"Development end  : "
+    f"{development.data['ds'].iloc[-1].date()}"
+)
+
+print(
+    f"Benchmark rows   : {len(benchmark)}"
+)
+
+print(
+    f"Benchmark start  : "
+    f"{benchmark['ds'].iloc[0].date()}"
+)
+
+print(
+    f"Benchmark end    : "
+    f"{benchmark['ds'].iloc[-1].date()}"
+)
+
+
+# ---------------------------------------------------------
+# Leakage-safe training preprocessing
+# ---------------------------------------------------------
+
+preprocessor = TemporalPreprocessor(
+    method="linear",
+    fill_edges=True,
+)
+
+
+# ---------------------------------------------------------
+# Internal temporal validation
+# ---------------------------------------------------------
+
+splitter = ExpandingWindowSplitter(
+    folds=INTERNAL_FOLDS,
+    validation_steps=INTERNAL_VALIDATION_STEPS,
+)
+
+optimization_evaluator = (
+    OptimizationEvaluator(
+        splitter,
+        metric=SELECTION_METRIC,
+        preprocessor=preprocessor,
+    )
+)
+
+
+print()
+print("Optimization configuration")
+print("-" * 70)
+
+print(
+    f"Candidates       : "
+    f"{PARAMETER_SPACE.candidate_count}"
+)
+
+print(
+    f"Internal folds   : "
+    f"{INTERNAL_FOLDS}"
+)
+
+print(
+    f"Validation steps : "
+    f"{INTERNAL_VALIDATION_STEPS}"
+)
+
+print(
+    f"Selection metric : "
+    f"{SELECTION_METRIC.upper()}"
+)
+
+
+# ---------------------------------------------------------
+# Optimize on development data ONLY
+# ---------------------------------------------------------
+
+optimizer = GenericOptimizer(
+    optimization_evaluator,
+    model="Kalman",
+)
+
+with warnings.catch_warnings():
+
+    warnings.simplefilter(
+        "ignore",
+        ConvergenceWarning,
+    )
+
+    optimization = optimizer.optimize(
+        dataset=development,
+        model_factory=KalmanForecaster,
+        candidates=PARAMETER_SPACE.candidates(),
+    )
+
+    optimization_artifact = OptimizationArtifact(
+        optimization,
+        benchmark_steps=EVALUATION_STEPS,
+    )
+
+
+# ---------------------------------------------------------
+# Candidate ranking
+# ---------------------------------------------------------
+
+ranked = sorted(
+    optimization.candidates,
+    key=lambda candidate: (
+        candidate.score
+    ),
+)
+
+print()
+print("Top Kalman candidates")
+print("-" * 100)
+
+print(
+    f"{'Rank':<6}"
+    f"{'Process Q':>12}"
+    f"{'Drift Q':>12}"
+    f"{'Regime':>12}"
+    f"{'Multiplier':>12}"
+    f"{'RMSE':>14}"
+    f"{'MAE':>12}"
+    f"{'MAPE':>12}"
+)
+
+for rank, candidate in enumerate(
+    ranked[:10],
+    start=1,
+):
+    params = candidate.params
+
+    print(
+        f"{rank:<6}"
+        f"{params['process_noise']:>12.1e}"
+        f"{params['drift_noise']:>12.1e}"
+        f"{params['regime_factor']:>12.2f}"
+        f"{params['regime_multiplier']:>12.2f}"
+        f"{candidate.metrics['rmse']:>14.6f}"
+        f"{candidate.metrics['mae']:>12.6f}"
+        f"{candidate.metrics['mape']:>12.6f}"
+    )
+
+
+print()
+print("Selected Kalman configuration")
+print("-" * 70)
+print(
+    f"Best parameters  : "
+    f"{optimization.best_params}"
+)
+print(
+    f"Internal RMSE    : "
+    f"{optimization.best_score:.6f}"
+)
+
+
+# ---------------------------------------------------------
+# Final benchmark evaluation
+# ---------------------------------------------------------
+
+selected_model = KalmanForecaster(
+    dt=KALMAN_DT,
+    adaptive=KALMAN_ADAPTIVE,
+    **optimization.best_params
+)
+
+benchmark_evaluator = ForecastEvaluator(
+    evaluation_steps=EVALUATION_STEPS,
+    preprocessor=preprocessor,
+)
+
+with warnings.catch_warnings():
+
+    warnings.simplefilter(
+        "ignore",
+        ConvergenceWarning,
+    )
+
+    evaluation = benchmark_evaluator.evaluate(
+        dataset=dataset,
+        model=selected_model,
+    )
+
+
+print()
+print("Final untouched benchmark")
+print("-" * 70)
+
+print(
+    f"RMSE             : "
+    f"{evaluation.rmse:.6f}"
+)
+
+print(
+    f"MAE              : "
+    f"{evaluation.mae:.6f}"
+)
+
+print(
+    f"MAPE             : "
+    f"{evaluation.mape:.6f}%"
+)
+
+
+print()
+print("Benchmark predictions")
+print("-" * 70)
+
+print(
+    f"{'Date':<14}"
+    f"{'Actual':>12}"
+    f"{'Predicted':>14}"
+    f"{'Error':>14}"
+)
+
+for (
+    date,
+    actual,
+    predicted,
+) in zip(
+    evaluation.dates,
+    evaluation.actual,
+    evaluation.predicted,
+):
+
+    error = (
+        predicted
+        - actual
+    )
+
+    print(
+        f"{str(date)[:10]:<14}"
+        f"{actual:>12.6f}"
+        f"{predicted:>14.6f}"
+        f"{error:>14.6f}"
+    )
+
+print()
+print("=" * 70)
+print("OPTIMIZATION COMPLETE")
+print("=" * 70)
+
+optimization_artifact = OptimizationArtifact(
+    optimization,
+    benchmark_steps=EVALUATION_STEPS,
+)
+
+
+REFERENCE_RMSE = 0.407101
+REFERENCE_MAE = 0.326640
+REFERENCE_MAPE = 1.035697
+
+print()
+print("Reference comparison")
+print("-" * 70)
+
+print(
+    f"{'Metric':<10}"
+    f"{'Reference':>14}"
+    f"{'Optimized':>14}"
+    f"{'Difference':>14}"
+)
+
+comparisons = (
+    (
+        "RMSE",
+        REFERENCE_RMSE,
+        evaluation.rmse,
+    ),
+    (
+        "MAE",
+        REFERENCE_MAE,
+        evaluation.mae,
+    ),
+    (
+        "MAPE",
+        REFERENCE_MAPE,
+        evaluation.mape,
+    ),
+)
+
+for (
+    name,
+    reference,
+    optimized,
+) in comparisons:
+
+    print(
+        f"{name:<10}"
+        f"{reference:>14.6f}"
+        f"{optimized:>14.6f}"
+        f"{optimized - reference:>14.6f}"
+    )
+
+
+expected_dates = [
+    "2024-03-01",
+    "2024-06-01",
+    "2024-09-01",
+    "2024-12-01",
+    "2025-03-01",
+    "2025-06-01",
+]
+
+expected_values = [
+    29.900,
+    30.506,
+    30.707,
+    31.319,
+    31.932,
+    32.000,
+]
+
+actual_dates = (
+    benchmark["ds"]
+    .dt.strftime("%Y-%m-%d")
+    .tolist()
+)
+
+actual_values = (
+    benchmark["microVolt"]
+    .astype(float)
+    .tolist()
+)
+
+assert actual_dates == (
+    expected_dates
+)
+
+for actual, expected in zip(
+    actual_values,
+    expected_values,
+):
+    assert abs(
+        actual - expected
+    ) < 1e-9
+
+
+selected_candidate = next(
+    candidate
+    for candidate in optimization.candidates
+    if candidate.params == optimization.best_params
+)
+
+print()
+print("Top candidate fold RMSE")
+print("-" * 116)
+
+print(
+    f"{'Rank':<6}"
+    f"{'Process Q':>12}"
+    f"{'Drift Q':>12}"
+    f"{'Regime':>10}"
+    f"{'Multiplier':>12}"
+    f"{'Fold 1':>12}"
+    f"{'Fold 2':>12}"
+    f"{'Fold 3':>12}"
+    f"{'Mean':>12}"
+)
+
+for rank, candidate in enumerate(
+    ranked[:10],
+    start=1,
+):
+    params = candidate.params
+
+    fold_metrics = candidate.metadata[
+        "fold_metrics"
+    ]
+
+    fold_rmse = [
+        metrics["rmse"]
+        for metrics in fold_metrics
+    ]
+
+    print(
+        f"{rank:<6}"
+        f"{params['process_noise']:>12.1e}"
+        f"{params['drift_noise']:>12.1e}"
+        f"{params['regime_factor']:>10.2f}"
+        f"{params['regime_multiplier']:>12.2f}"
+        f"{fold_rmse[0]:>12.6f}"
+        f"{fold_rmse[1]:>12.6f}"
+        f"{fold_rmse[2]:>12.6f}"
+        f"{candidate.metrics['rmse']:>12.6f}"
+    )
+
+
+# ---------------------------------------------------------
+# Standardized result files
+# ---------------------------------------------------------
+
+result_files = create_result_files(
+    battery=BATTERY,
+    model="kalman",
+    # include any other arguments required by the
+    # EXISTING create_result_files() contract
+)
+
+
+# ---------------------------------------------------------
+# Write optimization artifact
+# ---------------------------------------------------------
+
+optimization_path = (
+    result_files.directory
+    / "optimization.json"
+)
+
+save_metadata(
+    optimization_path,
+    optimization_artifact.to_dict(),
+)
+
+print(
+    f"Optimization artifact: "
+    f"{optimization_path}"
+)
