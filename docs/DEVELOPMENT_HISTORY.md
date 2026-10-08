@@ -167,6 +167,30 @@ a unified architecture while remaining independent.
 
 ---
 
+# Sprint 14.9 — Dataset 410 Transition Diagnostics (Documentation Update)
+
+## Objective
+
+Make the boundary between measured-holdout benchmarking and unvalidated operational extrapolation explicit and auditable.
+
+## Main Achievements
+
+- Preserved the frozen six-quarter dataset-410 benchmark (training through December 2023; measured holdout March 2024–June 2025).
+- Added separately refitted six-quarter operational extrapolation (training through June 2025; forecast September 2025–December 2026), without reoptimization.
+- Added reusable benchmark and operational execution results.
+- Added benchmark-history and benchmark-to-operational transition diagnostics.
+- Reused computed forecasts for plots without additional model fitting or prediction.
+- Confirmed successful complete-runner execution and full-suite testing, as reported during the sprint.
+- Conducted a preliminary neural source review; deferred model optimization to future work without changing benchmark evidence.
+
+## Outcome
+
+Transition Diagnostics is complete for dataset 410. Measured-holdout evaluation and unvalidated future extrapolation remain distinct; the latter must not be presented as benchmark accuracy or model-selection evidence.
+
+**Scope note:** This update documents Sprint 14.9 work. It does not assign a new framework release number, alter earlier sprint records, or imply completion of later dataset-110 or artifact-closure work.
+
+---
+
 # Lessons Learned
 
 Several architectural principles emerged during development.
@@ -182,9 +206,9 @@ the framework.
 
 ---
 
-# Next Sprint
+# Historical Next-Sprint Note (retained from v0.7.0)
 
-Sprint 8 will focus on
+At the time of the original document, Sprint 8 was planned to focus on
 
 - Documentation
 - Visualization improvements

@@ -1637,6 +1637,45 @@ Optimization should build on the established evaluation contract rather than int
 
 ---
 
+## 35.1 Sprint 14.9 — Dataset 410 Transition Diagnostics
+
+Sprint 14.9 adds evidence-only diagnostics for the transition between the frozen measured-holdout benchmark and a separately refitted operational extrapolation for battery `732B-5610410`.
+
+The two stages have distinct scientific meanings:
+
+| Stage | Training data boundary | Forecast dates | Interpretation |
+| --- | --- | --- | --- |
+| Frozen benchmark | Through 2023-12-01 | 2024-03-01 to 2025-06-01 (6 quarters) | Predictions evaluated against reserved measured observations |
+| Operational extrapolation | Through 2025-06-01 | 2025-09-01 to 2026-12-01 (6 quarters) | Future forecasts without observed targets; **unvalidated** |
+
+The operational stage uses the same frozen model configurations, refitted through the later cutoff without reoptimization. Operational forecasts are **not** holdout benchmark scores, independent validation results, or evidence for model selection.
+
+The complete runner is invoked from the repository root:
+
+```text
+python -m examples.optimization.run_410_complete
+```
+
+The runner calls the benchmark and operational execution functions once each, reuses their in-memory evidence, and generates transition figures without further fitting or prediction. Relevant outputs include:
+
+```text
+results/732B-5610410/optimized_benchmark/
+results/732B-5610410/operational_extrapolation/
+results/732B-5610410/transition_diagnostics/benchmark_to_operational_transition.png
+```
+
+The transition figure distinguishes measured history, frozen holdout predictions, unvalidated operational forecasts, and the two training boundaries (2023-12-01 and 2025-06-01). It is a presentation and diagnostic artifact, not a new experiment.
+
+The dataset-410 complete runner and the full test suite were reported successful at the end of the transition-diagnostics implementation. The frozen benchmark predictions, metrics, model rankings, configurations, and seed policy were not revised for visualization.
+
+## 35.2 Deferred Model Optimization
+
+A preliminary source-level review of neural forecasting was conducted following observed increases in LSTM/GRU holdout errors. This review did **not** establish a training defect and did **not** change the frozen benchmark.
+
+Optimization of ARIMA, Kalman, LSTM, GRU, and hybrid models remains future work. It should use development-only tuning and leakage-safe validation (including rolling-origin validation where appropriate), preserve the existing standardized evaluation contract, and distinguish exploratory results from the frozen benchmark.
+
+---
+
 # 36. Core Architectural Principle
 
 ZenerEstimation distinguishes four stages:
