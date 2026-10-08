@@ -20,6 +20,12 @@ from .artifact import OptimizationArtifact
 from .stability import SeedResult, StabilityResult, FailedSeedResult
 from .stability_evaluator import StabilityEvaluator
 from .stability_artifact import StabilityArtifact
+from .benchmark_artifact import BenchmarkArtifact
+from .benchmark_report import BenchmarkReport
+from .provenance import BenchmarkProvenance
+
+from .evidence import copy_evidence_files,validate_provenance_references
+
 
 __all__ = [
     "CandidateResult",
@@ -39,5 +45,10 @@ __all__ = [
     "StabilityResult",
     "StabilityEvaluator",
     "FailedSeedResult",
-    "StabilityArtifact"
+    "StabilityArtifact",
+    "BenchmarkArtifact",
+    "BenchmarkReport",
+    "BenchmarkProvenance",
+    "copy_evidence_files",
+    "validate_provenance_references"
 ]

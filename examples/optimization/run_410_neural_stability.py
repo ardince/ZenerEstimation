@@ -19,6 +19,7 @@ from zenerestimation.optimization import (
     ExpandingWindowSplitter,
     OptimizationEvaluator,
     StabilityEvaluator,
+    StabilityArtifact,
 )
 
 from zenerestimation.data.temporal.preprocessor import (
@@ -33,6 +34,10 @@ BATTERY = "732B-5610410"
 
 DATA_PATH = Path(
     "datasets/processed/732B-5610410.csv"
+)
+
+STABILITY_OUTPUT_ROOT = Path(
+    "results/732B-5610410/optimized_benchmark/stability"
 )
 
 # ---------------------------------------------------------
@@ -77,6 +82,13 @@ MODEL_CONFIGS = {
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,
     },
+}
+
+STABILITY_DIRECTORIES = {
+    "LSTM": "lstm",
+    "GRU": "gru",
+    "LinearTrendLSTM": "linear_trend_lstm",
+    "KalmanLSTM": "kalman_lstm",
 }
 
 
@@ -155,6 +167,25 @@ def kalman_lstm_factory(**params):
     )
 
 
+def save_stability_artifact(
+    result,
+    *,
+    model_name: str,
+) -> Path:
+    """Persist one completed stability result."""
+
+    output_directory = (
+        STABILITY_OUTPUT_ROOT
+        / STABILITY_DIRECTORIES[model_name]
+    )
+
+    return StabilityArtifact(
+        result
+    ).save(
+        output_directory
+    )
+
+
 RUNS = (
     (
         "LSTM",
@@ -199,6 +230,13 @@ for model_name, factory in RUNS:
 
     results[model_name] = result
 
+
+    artifact_path = save_stability_artifact(
+        result,
+        model_name=model_name,
+    )
+
+
     for seed_result in result.seeds:
         print(
             f"seed={seed_result.seed:<2d} "
@@ -231,4 +269,8 @@ for model_name, factory in RUNS:
 
     print(
         f"RMSE CV   : {cv:.6f}"
+    )
+
+    print(
+        f"Artifact  : {artifact_path}"
     )

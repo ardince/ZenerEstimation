@@ -49,7 +49,8 @@ class BenchmarkModelSpec:
 
 
 class OptimizedBenchmark:
-    """Evaluate frozen model configurations on one benchmark contract.
+    """
+    Evaluate frozen model configurations on one benchmark contract.
 
     OptimizedBenchmark is an orchestration layer. It does not optimize
     parameters, select seeds, preprocess data independently, calculate
@@ -57,6 +58,14 @@ class OptimizedBenchmark:
 
     Each BenchmarkModelSpec creates a fresh model instance. Scientific
     evaluation is delegated to the supplied ForecastEvaluator.
+
+    The standard ``evaluate`` method preserves the original benchmark
+    contract and returns only standardized evaluation results.
+
+    The ``evaluate_with_forecasts`` method additionally retains the
+    original forecast results produced during those same model
+    executions. This allows downstream presentation layers to access
+    historical fitted values without refitting or reforecasting models.
     """
 
     def __init__(
@@ -93,7 +102,8 @@ class OptimizedBenchmark:
         dataset,
         specs,
     ) -> dict[str, Any]:
-        """Evaluate frozen model specifications.
+        """
+        Evaluate frozen model specifications.
 
         Parameters
         ----------
@@ -113,6 +123,9 @@ class OptimizedBenchmark:
         -----
         Each specification creates a fresh model instance. No result
         from one model evaluation influences any subsequent model.
+
+        This method preserves the original OptimizedBenchmark public
+        contract.
         """
 
         specs = self._normalize_specs(
@@ -132,6 +145,92 @@ class OptimizedBenchmark:
             results[spec.name] = result
 
         return results
+
+    def evaluate_with_forecasts(
+        self,
+        dataset,
+        specs,
+    ) -> tuple[
+        dict[str, Any],
+        dict[str, Any],
+    ]:
+        """
+        Evaluate frozen model specifications and retain forecasts.
+
+        Each model is created fresh and evaluated exactly once.
+        Scientific evaluation is delegated to the evaluator's
+        ``evaluate_with_forecast`` method.
+
+        Parameters
+        ----------
+        dataset:
+            Dataset passed unchanged to the standardized evaluator.
+
+        specs:
+            Iterable of BenchmarkModelSpec objects.
+
+        Returns
+        -------
+        tuple
+            ``(evaluations, forecasts)``
+
+            ``evaluations`` contains standardized EvaluationResult
+            objects keyed by model name.
+
+            ``forecasts`` contains the original ForecastResult objects
+            produced during those same model executions, keyed by the
+            same model names and preserving specification order.
+
+        Notes
+        -----
+        This method does not perform a second fit or forecast. The
+        forecast evidence returned for each model is the same evidence
+        used by the evaluator to construct its EvaluationResult.
+        """
+
+        evaluate_with_forecast = getattr(
+            self._evaluator,
+            "evaluate_with_forecast",
+            None,
+        )
+
+        if not callable(
+            evaluate_with_forecast
+        ):
+            raise TypeError(
+                "evaluator must provide a callable "
+                "evaluate_with_forecast method"
+            )
+
+        specs = self._normalize_specs(
+            specs
+        )
+
+        evaluations: dict[str, Any] = {}
+        forecasts: dict[str, Any] = {}
+
+        for spec in specs:
+            model = spec.create_model()
+
+            evaluation, forecast = (
+                evaluate_with_forecast(
+                    dataset,
+                    model,
+                )
+            )
+
+            evaluations[
+                spec.name
+            ] = evaluation
+
+            forecasts[
+                spec.name
+            ] = forecast
+
+        return (
+            evaluations,
+            forecasts,
+        )
 
     @staticmethod
     def _normalize_specs(

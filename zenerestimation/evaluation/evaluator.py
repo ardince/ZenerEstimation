@@ -34,17 +34,16 @@ class ForecastEvaluator:
 
     Model-specific transformations remain the responsibility
     of the forecasting model.
-    
-    Evaluate a forecasting model using a deterministic holdout split.
 
-    The final ``evaluation_steps`` observations are reserved for
-    validation. The supplied forecasting model is fitted only on the
-    preceding training observations.
+    The standard ``evaluate`` method returns only the
+    standardized ``EvaluationResult``.
 
-    Parameters
-    ----------
-    evaluation_steps:
-        Number of observations reserved for holdout evaluation.
+    The ``evaluate_with_forecast`` method executes the same
+    scientific evaluation once, but additionally returns the
+    original model ``ForecastResult`` produced during that
+    execution. This allows presentation/reporting layers to
+    access fitted historical values without refitting or
+    reforecasting the model.
     """
 
     def __init__(
@@ -54,22 +53,20 @@ class ForecastEvaluator:
         preprocessor=None,
         evaluation_end=None,
     ) -> None:
-
         if (
-                not isinstance(
-                    evaluation_steps,
-                    int,
-                )
-                or isinstance(
-                    evaluation_steps,
-                    bool,
-                )
-            ):
-
-                raise TypeError(
-                    "evaluation_steps must "
-                    "be an integer"
-                )
+            not isinstance(
+                evaluation_steps,
+                int,
+            )
+            or isinstance(
+                evaluation_steps,
+                bool,
+            )
+        ):
+            raise TypeError(
+                "evaluation_steps must "
+                "be an integer"
+            )
 
         if evaluation_steps <= 0:
             raise ValueError(
@@ -77,20 +74,19 @@ class ForecastEvaluator:
             )
 
         if (
-                preprocessor is not None
-                and not callable(
-                    getattr(
-                        preprocessor,
-                        "fit_transform",
-                        None,
-                    )
+            preprocessor is not None
+            and not callable(
+                getattr(
+                    preprocessor,
+                    "fit_transform",
+                    None,
                 )
-            ):
-
-                raise TypeError(
-                    "preprocessor must provide "
-                    "a callable fit_transform method"
-                )
+            )
+        ):
+            raise TypeError(
+                "preprocessor must provide "
+                "a callable fit_transform method"
+            )
 
         self.evaluation_steps = (
             evaluation_steps
@@ -133,10 +129,88 @@ class ForecastEvaluator:
         -------
         EvaluationResult
             Standardized holdout evaluation result.
+
+        Notes
+        -----
+        This public method preserves the original evaluator
+        contract. The model is fitted and forecast exactly once.
         """
 
-        self._validate_dataset(dataset)
-        self._validate_model(model)
+        evaluation, _ = self._evaluate(
+            dataset,
+            model,
+        )
+
+        return evaluation
+
+    def evaluate_with_forecast(
+        self,
+        dataset: BatteryDataset,
+        model: Any,
+    ) -> tuple[EvaluationResult, Any]:
+        """
+        Evaluate a model and retain its original forecast result.
+
+        The scientific evaluation is identical to ``evaluate``.
+        The model is fitted once and ``predict`` is called once.
+
+        Parameters
+        ----------
+        dataset:
+            Complete battery dataset.
+
+        model:
+            Forecasting model implementing::
+
+                fit(dataset)
+                predict(steps)
+
+        Returns
+        -------
+        tuple
+            ``(EvaluationResult, ForecastResult)``
+
+            The first element is the standardized holdout
+            evaluation result.
+
+            The second element is the original forecast result
+            returned by the model during that same evaluation.
+            It may contain historical fitted values in addition
+            to the future forecast.
+        """
+
+        return self._evaluate(
+            dataset,
+            model,
+        )
+
+    # --------------------------------------------------------
+    # Shared evaluation execution
+    # --------------------------------------------------------
+
+    def _evaluate(
+        self,
+        dataset: BatteryDataset,
+        model: Any,
+    ) -> tuple[EvaluationResult, Any]:
+        """
+        Execute one standardized holdout evaluation.
+
+        This private method is the single execution path used by
+        both ``evaluate`` and ``evaluate_with_forecast``.
+
+        It returns both the standardized ``EvaluationResult`` and
+        the original model forecast result without refitting or
+        reforecasting the model.
+        """
+
+        self._validate_dataset(
+            dataset
+        )
+
+        self._validate_model(
+            model
+        )
 
         train_dataset, validation_df = (
             self.split_dataset(
@@ -156,7 +230,6 @@ class ForecastEvaluator:
             self.preprocessor
             is not None
         ):
-
             prepared_train = (
                 self.preprocessor
                 .fit_transform(
@@ -164,10 +237,13 @@ class ForecastEvaluator:
                 )
             )
 
+        # ----------------------------------------------------
+        # Fit model
+        # ----------------------------------------------------
+
         model.fit(
             prepared_train
         )
-        
 
         # ----------------------------------------------------
         # Forecast holdout period
@@ -222,10 +298,10 @@ class ForecastEvaluator:
         )
 
         # ----------------------------------------------------
-        # Standardized result
+        # Standardized evaluation result
         # ----------------------------------------------------
 
-        return EvaluationResult(
+        evaluation = EvaluationResult(
             model=model_name,
             evaluation_steps=self.evaluation_steps,
             rmse=rmse,
@@ -252,11 +328,19 @@ class ForecastEvaluator:
                 "preprocessing": (
                     self._preprocessing_metadata()
                 ),
-
                 "evaluation_end": (
-                    str(validation_df["ds"].iloc[-1].date())
+                    str(
+                        validation_df[
+                            "ds"
+                        ].iloc[-1].date()
+                    )
                 ),
             },
+        )
+
+        return (
+            evaluation,
+            forecast_result,
         )
 
     # --------------------------------------------------------
@@ -276,7 +360,9 @@ class ForecastEvaluator:
             ``(training_dataset, validation_dataframe)``
         """
 
-        self._validate_dataset(dataset)
+        self._validate_dataset(
+            dataset
+        )
 
         data = dataset.data.copy()
 
@@ -285,9 +371,9 @@ class ForecastEvaluator:
         # -----------------------------------------------------
 
         if self.evaluation_end is not None:
-
             data = data.loc[
-                data["ds"] <= self.evaluation_end
+                data["ds"]
+                <= self.evaluation_end
             ].copy()
 
             if data.empty:
@@ -308,7 +394,7 @@ class ForecastEvaluator:
 
         # -----------------------------------------------------
         # Holdout split
-        # -----------------------------------------------------        
+        # -----------------------------------------------------
 
         split_index = (
             len(data)
@@ -441,7 +527,6 @@ class ForecastEvaluator:
         self,
         dataset: BatteryDataset,
     ) -> None:
-
         if not isinstance(
             dataset,
             BatteryDataset,
@@ -460,7 +545,6 @@ class ForecastEvaluator:
     def _validate_model(
         model: Any,
     ) -> None:
-
         if not callable(
             getattr(
                 model,
@@ -488,7 +572,6 @@ class ForecastEvaluator:
         actual,
         predicted,
     ) -> tuple[np.ndarray, np.ndarray]:
-
         actual_array = np.asarray(
             actual,
             dtype=float,
@@ -541,7 +624,6 @@ class ForecastEvaluator:
             predicted_array,
         )
 
-    
     # --------------------------------------------------------
     # Helpers
     # --------------------------------------------------------
@@ -602,7 +684,6 @@ class ForecastEvaluator:
             "missing target values"
         )
 
-
     def _preprocessing_metadata(
         self,
     ) -> dict:
@@ -646,7 +727,6 @@ class ForecastEvaluator:
 
         return metadata
 
-
     @staticmethod
     def _model_name(
         model: Any,
@@ -663,7 +743,9 @@ class ForecastEvaluator:
         )
 
         if result_name:
-            return str(result_name)
+            return str(
+                result_name
+            )
 
         return model.__class__.__name__
 
