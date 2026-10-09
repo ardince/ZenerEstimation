@@ -187,6 +187,18 @@ Make the boundary between measured-holdout benchmarking and unvalidated operatio
 
 Transition Diagnostics is complete for dataset 410. Measured-holdout evaluation and unvalidated future extrapolation remain distinct; the latter must not be presented as benchmark accuracy or model-selection evidence.
 
+
+## Sprint 14.9G — Dataset 110 benchmark and operational workflow
+
+- **G.1:** Audited 109 canonical quarterly rows, 103 measured rows and six unobserved quarters. Three consecutive missing quarters in 2024 were explicitly excluded from the five-quarter measured holdout.
+- **G.2:** Froze benchmark training cutoff (2022-12-01), holdout endpoint (2024-03-01), and cross-battery transferred model specifications. Fixed the evaluator historical-endpoint split to use filtered data. Seven focused endpoint tests passed; the full regression suite reported 1,189 passing tests at that stage.
+- **G.3:** Implemented preflight and six-model measured-holdout benchmark. Saved standardized metrics, reports, prediction CSV and provenance. The benchmark report ranks LSTM first by RMSE (0.260595 µV), followed by GRU (0.271794 µV) and ARIMA (0.312911 µV). Presentation CSV rounded to two decimals while retaining full-precision evidence.
+- **G.4:** Independently refitted six frozen specifications through 2025-03-01 and forecast six unvalidated quarters through 2026-09-01. Preserved missing-quarter observation flags and operational provenance.
+- **G.5:** Produced two-panel benchmark-to-operational diagnostic from stored predictions only; no additional model fit or prediction.
+- **G.6:** Final tests, documentation, artifact audit, and Git review remain required before Sprint closure. Do not claim final suite passed or Git push completed until confirmed by local output.
+
+
+
 **Scope note:** This update documents Sprint 14.9 work. It does not assign a new framework release number, alter earlier sprint records, or imply completion of later dataset-110 or artifact-closure work.
 
 ---

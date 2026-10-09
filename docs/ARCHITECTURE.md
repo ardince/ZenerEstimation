@@ -1668,6 +1668,18 @@ The transition figure distinguishes measured history, frozen holdout predictions
 
 The dataset-410 complete runner and the full test suite were reported successful at the end of the transition-diagnostics implementation. The frozen benchmark predictions, metrics, model rankings, configurations, and seed policy were not revised for visualization.
 
+
+## Sprint 14.9G — Dataset 110 transferred benchmark and operational diagnostics
+
+Battery `732B-5610110` uses a canonical quarterly `QS-MAR` timeline from 1998-03-01 through 2025-03-01: 109 periods, 103 measured, and six unobserved quarters (2002-09-01; 2010-03-01; 2010-06-01; 2024-06-01; 2024-09-01; 2024-12-01). `is_observed` is preserved; imputed training values are never measured holdout targets.
+
+**Measured-holdout benchmark:** fit only through 2022-12-01; evaluate exactly five measured quarters 2023-03-01 through 2024-03-01. The evaluator's `evaluation_end` filter is applied to the actual split data, not merely its length check. Holdout targets are `[167.17, 167.73, 168.30, 168.86, 169.90]` µV. Six frozen model specifications (ARIMA, Kalman, LSTM, GRU, LinearTrendLSTM, KalmanLSTM) are transferred from battery 410, not optimized for battery 110. Neural benchmark seed is 42; no holdout-driven parameter or seed selection is permitted.
+
+**Operational extrapolation:** independently refit the same frozen specifications through 2025-03-01 (last measured 171.60 µV). Forecast six quarters 2025-06-01 through 2026-09-01. These are unvalidated predictions, without future measured actuals, forecast errors, or accuracy metrics. Historical missing quarters remain flagged as unobserved, even when interpolation is used inside the training partition.
+
+**Evidence boundary:** `results/732B-5610110/transferred_benchmark/` holds historical evaluation; `operational_extrapolation/` holds future predictions; `transition_diagnostics/` holds a visualization reconstructed from stored full-precision benchmark predictions and operational JSON. Transition visualization performs no fitting or prediction. Two-decimal presentation CSVs must not be used for numerical validation or downstream scientific computation. Benchmark model rankings and stored metrics remain immutable during presentation refresh.
+
+
 ## 35.2 Deferred Model Optimization
 
 A preliminary source-level review of neural forecasting was conducted following observed increases in LSTM/GRU holdout errors. This review did **not** establish a training defect and did **not** change the frozen benchmark.

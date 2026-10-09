@@ -30,6 +30,28 @@ This is a development-status entry, **not** a new numbered release. The existing
 - User confirmed successful execution of the complete dataset-410 runner and full test suite.
 - No new numerical benchmark metrics or release version are asserted in this entry.
 
+## Unreleased — Sprint 14.9G (dataset 110)
+
+### Added
+- Frozen five-quarter measured-holdout benchmark for battery `732B-5610110`, using transferred battery-410 configurations.
+- Independent six-quarter operational extrapolation through 2026-09-01, explicitly labeled unvalidated.
+- Two-panel transition diagnostics generated exclusively from stored evidence.
+- Preflight, execution, operational and transition regression tests.
+- Human-readable two-decimal forecast CSV with separate full-precision scientific evidence.
+
+### Fixed
+- `ForecastEvaluator.split_dataset()` now splits the historical endpoint-filtered data when `evaluation_end` is specified, preventing later observations from entering the historical benchmark.
+
+### Scientific safeguards
+- Holdout measurements are never imputed or used for hyperparameter/seed selection.
+- Operational predictions are not benchmark accuracy evidence.
+- Transition plotting does not fit models or generate predictions.
+- Frozen benchmark metrics and rankings are unchanged by display formatting.
+
+### Release status
+Pending final local regression suite, Git diff review, and user-approved commit/push.
+
+
 ---
 
 # v0.7.0
