@@ -12,6 +12,7 @@ from typing import Any, Callable
 import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
+from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment
 from zenerestimation.evaluation.evaluator import ForecastEvaluator
 
 from .candidate import CandidateResult
@@ -173,19 +174,10 @@ class OptimizationEvaluator:
                 dtype=float,
             )
 
-            predicted = np.asarray(
-                forecast_result.forecast,
-                dtype=float,
+            predicted = validate_forecast_alignment(
+                forecast_result,
+                fold.validation["ds"],
             )
-
-            if (
-                len(predicted)
-                != fold.validation_points
-            ):
-                raise ValueError(
-                    "model prediction length must match "
-                    "the temporal validation horizon"
-                )
 
             metrics = {
                 "rmse": ForecastEvaluator.rmse(

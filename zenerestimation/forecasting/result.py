@@ -52,14 +52,15 @@ class ForecastResult:
         return float(self.forecast.iloc[-1])
 
     def to_dataframe(self):
-        """
-        Convert forecast to a pandas DataFrame.
-        """
-
+        """Convert forecast to a DataFrame using positional values."""
+        if len(self.dates) != len(self.forecast):
+            raise ValueError(
+                "forecast dates and values must have equal lengths"
+            )
         return pd.DataFrame(
             {
                 "ds": self.dates,
-                "forecast": self.forecast,
+                "forecast": self.forecast.to_numpy(),
             }
         )
 

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from zenerestimation.data.dataset import BatteryDataset
+from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment
 from zenerestimation.evaluation.result import EvaluationResult
 
 
@@ -258,16 +259,16 @@ class ForecastEvaluator:
             dtype=float,
         )
 
-        predicted = np.asarray(
-            forecast_result.forecast,
-            dtype=float,
-        )
-
-        if len(predicted) != self.evaluation_steps:
+        # Preserve the evaluator's established public error message.
+        if len(forecast_result.forecast) != self.evaluation_steps:
             raise ValueError(
-                "model prediction length must match "
-                "evaluation_steps"
+                "model prediction length must match evaluation_steps"
             )
+
+        predicted = validate_forecast_alignment(
+            forecast_result,
+            validation_df["ds"],
+        )
 
         # ----------------------------------------------------
         # Metrics
