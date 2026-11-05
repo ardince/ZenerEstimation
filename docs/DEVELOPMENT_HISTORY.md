@@ -203,6 +203,29 @@ Transition Diagnostics is complete for dataset 410. Measured-holdout evaluation 
 
 ---
 
+# Milestone 16 — Forecast Validation and Cross-Battery Integration
+
+## Objective
+
+Strengthen temporal forecast validation, make neural optimization auditable, and integrate consistent numerical evidence across the battery-410 and battery-110 workflows.
+
+## Main Achievements
+
+- **16.1 — Forecast validation:** Strengthened quarterly timestamp alignment and forecast-result compatibility; retained explicit alignment evidence for validation.
+- **16.2 — Optimization and provenance:** Integrated per-fold alignment evidence into optimization results, opt-in strict enforcement, dataset and training-partition fingerprints, environment provenance, and experiment-manifest assembly and verification.
+- **16.3 — Neural diagnostics:** Extended LSTM/GRU training histories, training events, diagnostics, parameter spaces, budgets, reporting, and provenance-linked artifacts.
+- **16.4 — Cross-battery integration:** Added historical-fit and external-accuracy evidence, neural forecast demonstrations, numerical explorers, dashboard comparisons, Excel reporting, and reconciliation checks that preserve the distinction between measured and unvalidated predictions.
+
+## Verification and Decisions
+
+- Final local regression suite: **1,891 passed, 161 warnings, zero failures** (November 2026).
+- Strict alignment remains **opt-in** (`require_verified_alignment=False` by default) for compatibility.
+- The local Milestone 16 Git commit and any GitHub synchronization were pending at the time of this documentation update; no remote publication is claimed.
+- Dashboard refinements and further accuracy-optimization presentation work are deferred to Milestone 17.
+- This entry records a development milestone, **not** a new numbered framework release; existing version metadata remains unchanged.
+
+---
+
 # Lessons Learned
 
 Several architectural principles emerged during development.

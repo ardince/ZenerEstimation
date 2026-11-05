@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment
+from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment_with_evidence
 from zenerestimation.evaluation.result import EvaluationResult
 
 
@@ -265,7 +265,7 @@ class ForecastEvaluator:
                 "model prediction length must match evaluation_steps"
             )
 
-        predicted = validate_forecast_alignment(
+        predicted, alignment_evidence = validate_forecast_alignment_with_evidence(
             forecast_result,
             validation_df["ds"],
         )
@@ -320,6 +320,7 @@ class ForecastEvaluator:
                 validation_df["ds"]
             ),
             metadata={
+                "forecast_alignment": alignment_evidence.to_dict(),
                 "training_points": len(
                     train_dataset
                 ),

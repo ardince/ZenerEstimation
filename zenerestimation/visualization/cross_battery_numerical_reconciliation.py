@@ -97,7 +97,30 @@ def reconcile_numerical_results(comparison, repository_root: str | Path) -> Nume
                     if sort_cols:
                         expected = expected.sort_values(sort_cols, kind="stable")
                     expected = expected.reset_index(drop=True)
-                    _equal(table, expected)
+                    if kind == "historical_fits" and not expected.empty:
+                        # The numerical UI adds physical observations by exact date.
+                        # Reconcile the original fit/provenance columns first, then
+                        # independently audit the measured-value enrichment.
+                        _equal(table.loc[:, expected.columns], expected)
+                        measurements = observed[battery](root).loc[
+                            :, ["date", "measured_microvolt"]
+                        ].copy()
+                        measurements["date"] = pd.to_datetime(measurements["date"])
+                        if measurements["date"].duplicated().any():
+                            raise ValueError("Observed history contains duplicate dates")
+                        aligned = expected[["date"]].merge(
+                            measurements, on="date", how="left",
+                            validate="many_to_one", sort=False,
+                        )
+                        assert list(table.columns) == [
+                            *expected.columns, "measured_microvolt"
+                        ], "Unexpected historical-fits presentation columns"
+                        _equal(
+                            table[["date", "measured_microvolt"]],
+                            aligned[["date", "measured_microvolt"]],
+                        )
+                    else:
+                        _equal(table, expected)
                     if battery == BATTERY_410 and kind in ("holdout", "historical_fits"):
                         assert table.empty and "unavailable" in status.lower()
                 elif kind == "observed":

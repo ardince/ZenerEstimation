@@ -13,7 +13,7 @@ from typing import Any, Callable, Iterable
 from zenerestimation.data.dataset import BatteryDataset
 
 from .candidate import CandidateResult
-from .evaluator import OptimizationEvaluator
+from .evaluator import ForecastAlignmentError, OptimizationEvaluator
 from .result import OptimizationResult
 
 
@@ -38,6 +38,8 @@ class GenericOptimizer:
         evaluator: OptimizationEvaluator,
         *,
         model: str,
+        max_candidates: int | None = None,
+        max_epoch_folds: int | None = None,
     ) -> None:
 
         if not isinstance(
@@ -56,6 +58,13 @@ class GenericOptimizer:
                 "model must be a non-empty string"
             )
 
+        for name, value in (("max_candidates", max_candidates),
+                            ("max_epoch_folds", max_epoch_folds)):
+            if value is not None and (type(value) is not int or value < 1):
+                raise ValueError(f"{name} must be a positive integer or None")
+
+        self.max_candidates = max_candidates
+        self.max_epoch_folds = max_epoch_folds
         self.evaluator = evaluator
         self.model = model
 
@@ -106,9 +115,35 @@ class GenericOptimizer:
             )
         )
 
+        # Budgeting is opt-in. An epoch-fold is one requested epoch in
+        # one temporal fold; this is a planned upper bound, not measured work.
+        fold_count = None
+        if self.max_epoch_folds is not None:
+            fold_count = len(self.evaluator.splitter.split(dataset))
+            if fold_count < 1:
+                raise ValueError("the splitter must produce at least one fold")
+            for params in candidate_params:
+                epochs = params.get("epochs")
+                if type(epochs) is not int or epochs < 1:
+                    raise ValueError(
+                        "max_epoch_folds requires a positive integer 'epochs' "
+                        "in every candidate (including hybrid neural candidates)"
+                    )
+
         results = []
+        planned_epoch_folds = 0
+        stop_reason = None
 
         for params in candidate_params:
+            if self.max_candidates is not None and len(results) >= self.max_candidates:
+                stop_reason = "max_candidates"
+                break
+            if self.max_epoch_folds is not None:
+                cost = params["epochs"] * fold_count
+                if planned_epoch_folds + cost > self.max_epoch_folds:
+                    stop_reason = "max_epoch_folds"
+                    break
+                planned_epoch_folds += cost
 
             try:
 
@@ -120,20 +155,23 @@ class GenericOptimizer:
 
             except Exception as exc:
 
+                failure_metadata = {"validation": "internal_temporal"}
+                if isinstance(exc, ForecastAlignmentError):
+                    failure_metadata["alignment_failure"] = dict(exc.alignment_failure)
+
                 result = CandidateResult.failed(
                     params=params,
                     error=exc,
-                    metadata={
-                        "validation": (
-                            "internal_temporal"
-                        ),
-                    },
+                    metadata=failure_metadata,
                 )
 
             results.append(
                 result
             )
 
+
+        if not results:
+            raise ValueError("budget does not permit evaluation of the first candidate")
 
         best_candidate = self._select_best(
             results
@@ -150,6 +188,17 @@ class GenericOptimizer:
                 "objective": "minimize",
                 "candidate_count": len(results),
                 "validation": "internal_temporal",
+                **({
+                    "budget": {
+                        "max_candidates": self.max_candidates,
+                        "max_epoch_folds": self.max_epoch_folds,
+                        "planned_epoch_folds": planned_epoch_folds,
+                        "fold_count": fold_count,
+                        "evaluated_candidates": len(results),
+                        "total_candidates": len(candidate_params),
+                        "stop_reason": stop_reason,
+                    }
+                } if self.max_candidates is not None or self.max_epoch_folds is not None else {}),
             },
         )
 

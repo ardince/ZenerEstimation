@@ -12,11 +12,24 @@ from typing import Any, Callable
 import numpy as np
 
 from zenerestimation.data.dataset import BatteryDataset
-from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment
+from zenerestimation.evaluation.forecast_validation import validate_forecast_alignment_with_evidence
 from zenerestimation.evaluation.evaluator import ForecastEvaluator
 
 from .candidate import CandidateResult
 from .validation import ExpandingWindowSplitter
+
+
+class ForecastAlignmentError(ValueError):
+    """A forecast passed value validation but lacks required date verification."""
+
+    def __init__(self, message: str, *, fold_index: int, observed_status: str):
+        super().__init__(message)
+        self.alignment_failure = {
+            "reason": "missing_forecast_dates",
+            "fold_index": fold_index,
+            "required_status": "verified",
+            "observed_status": observed_status,
+        }
 
 
 class OptimizationEvaluator:
@@ -34,6 +47,10 @@ class OptimizationEvaluator:
     preprocessor:
         Optional training-data preprocessor. A fresh copy is used
         independently inside every temporal fold.
+
+    require_verified_alignment:
+        When True, every fold must provide matching forecast timestamps.
+        Defaults to False for backward compatibility.
     """
 
     SUPPORTED_METRICS = (
@@ -48,6 +65,8 @@ class OptimizationEvaluator:
         *,
         metric: str = "rmse",
         preprocessor=None,
+        require_verified_alignment: bool = False,
+        record_neural_diagnostics: bool = False,
     ) -> None:
 
         if not isinstance(
@@ -82,6 +101,14 @@ class OptimizationEvaluator:
                 "a callable fit_transform method"
             )
 
+        if not isinstance(require_verified_alignment, bool):
+            raise TypeError("require_verified_alignment must be a boolean")
+
+        if not isinstance(record_neural_diagnostics, bool):
+            raise TypeError("record_neural_diagnostics must be a boolean")
+
+        self.record_neural_diagnostics = record_neural_diagnostics
+        self.require_verified_alignment = require_verified_alignment
         self.splitter = splitter
         self.metric = metric
         self.preprocessor = preprocessor
@@ -131,6 +158,8 @@ class OptimizationEvaluator:
         )
 
         fold_metrics = []
+        fold_alignment = []
+        fold_training = [] if self.record_neural_diagnostics else None
 
         for fold in folds:
 
@@ -165,6 +194,32 @@ class OptimizationEvaluator:
                 train_dataset
             )
 
+            if fold_training is not None:
+                # Capture after fit, before prediction. No training or validation
+                # inputs are changed by these read-only diagnostics.
+                from .neural_training import extract_neural_training_history
+                from .neural_diagnostics import analyze_neural_training
+
+                trace = extract_neural_training_history(model)
+                neural = getattr(model, "residual_model", model)
+                recorder = getattr(neural, "training_recorder", None)
+                events = (
+                    recorder.to_dict()
+                    if recorder is not None
+                    else None
+                )
+                fold_training.append({
+                    "fold_index": fold.index + 1,
+                    "component": type(neural).__name__,
+                    "history": trace,
+                    "events": events,
+                    "diagnostics": (
+                        analyze_neural_training(trace)
+                        if trace is not None else None
+                    ),
+                    "status": "recorded" if trace is not None else "not_recorded",
+                })
+
             forecast_result = model.predict(
                 fold.validation_points
             )
@@ -174,10 +229,18 @@ class OptimizationEvaluator:
                 dtype=float,
             )
 
-            predicted = validate_forecast_alignment(
+            predicted, alignment_evidence = validate_forecast_alignment_with_evidence(
                 forecast_result,
                 fold.validation["ds"],
             )
+
+            if self.require_verified_alignment and alignment_evidence.status != "verified":
+                raise ForecastAlignmentError(
+                    f"fold {fold.index}: verified forecast timestamps are required "
+                    f"(received {alignment_evidence.status})",
+                    fold_index=fold.index,
+                    observed_status=alignment_evidence.status,
+                )
 
             metrics = {
                 "rmse": ForecastEvaluator.rmse(
@@ -193,6 +256,11 @@ class OptimizationEvaluator:
                     predicted,
                 ),
             }
+
+            fold_alignment.append({
+                "fold_index": fold.index,
+                **alignment_evidence.to_dict(),
+            })
 
             fold_metrics.append(
                 metrics
@@ -216,6 +284,8 @@ class OptimizationEvaluator:
                 ),
                 "selection_metric": self.metric,
                 "fold_metrics": fold_metrics,
+                "fold_alignment": fold_alignment,
+                **({"fold_training": fold_training} if fold_training is not None else {}),
                 "preprocessing": (
                     self._preprocessing_metadata()
                 ),

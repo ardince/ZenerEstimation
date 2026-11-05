@@ -22,6 +22,7 @@ from zenerestimation.forecasting import ForecastResult
 
 from .base import BaseNeuralForecaster
 from .utils import set_seed
+from .training_events import NeuralTrainingRecorder
 
 
 class GRUForecaster(BaseNeuralForecaster):
@@ -45,6 +46,7 @@ class GRUForecaster(BaseNeuralForecaster):
         epochs=100,
         batch_size=8,
         seed=42,
+        record_training=False,
     ):
 
         super().__init__(
@@ -58,6 +60,11 @@ class GRUForecaster(BaseNeuralForecaster):
         self.batch_size = int(batch_size)
 
         self.seed = int(seed)
+
+        if not isinstance(record_training, bool):
+            raise TypeError("record_training must be a boolean")
+        self.record_training = record_training
+        self.training_recorder = None
 
         self.model = None
 
@@ -172,19 +179,20 @@ class GRUForecaster(BaseNeuralForecaster):
         # Train
         # ---------------------------------------------
 
-        self.history = self.model.fit(
-
-            X,
-
-            y,
-
-            epochs=self.epochs,
-
-            batch_size=self.batch_size,
-
-            verbose=0,
-
-        )
+        self.training_recorder = NeuralTrainingRecorder() if self.record_training else None
+        fit_kwargs = {
+            "epochs": self.epochs,
+            "batch_size": self.batch_size,
+            "verbose": 0,
+        }
+        if self.training_recorder is not None:
+            fit_kwargs["callbacks"] = [self.training_recorder]
+        try:
+            self.history = self.model.fit(X, y, **fit_kwargs)
+        except Exception:
+            if self.training_recorder is not None:
+                self.training_recorder.mark_failed()
+            raise
 
         # ---------------------------------------------
         # Fitted values
@@ -357,6 +365,7 @@ class GRUForecaster(BaseNeuralForecaster):
                 "batch_size": self.batch_size,
 
                 "seed": self.seed,
+                "record_training": self.record_training,
 
             }
 

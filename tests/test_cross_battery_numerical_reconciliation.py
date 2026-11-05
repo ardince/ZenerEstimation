@@ -93,3 +93,37 @@ def test_input_frames_not_mutated(comparison, stub_loaders):
     reconcile_numerical_results(comparison, ".")
     for name, frame in original.items():
         pd.testing.assert_frame_equal(getattr(comparison, name), frame)
+
+
+def test_110_historical_measurement_matches_exact_observed_date(comparison, stub_loaders, monkeypatch):
+    import zenerestimation.visualization.cross_battery_numerical_reconciliation as mod
+    observed = pd.DataFrame({
+        "date": [pd.Timestamp("2022-12-01"), pd.Timestamp("2025-03-01")],
+        "measured_microvolt": [166.61, 171.6],
+    })
+    monkeypatch.setattr(mod, "load_110_observed_history", lambda root: observed.copy())
+    import zenerestimation.visualization.cross_battery_dashboard_numerical_ui as ui
+    monkeypatch.setattr(ui, "load_110_observed_history", lambda root: observed.copy())
+    audit = mod.reconcile_numerical_results(comparison, ".")
+    row = audit.checks.loc[(audit.checks.battery_id == BATTERY_110)
+                           & (audit.checks.kind == "historical_fits")].iloc[0]
+    assert row.passed, row.detail
+
+
+def test_110_tampered_historical_measurement_is_detected(comparison, stub_loaders, monkeypatch):
+    import zenerestimation.visualization.cross_battery_numerical_reconciliation as mod
+    original = mod.numerical_result
+
+    def tampered(*args, **kwargs):
+        table, status = original(*args, **kwargs)
+        if kwargs.get("battery_id") == BATTERY_110 and kwargs.get("kind") == "historical_fits":
+            table = table.copy(deep=True)
+            table["measured_microvolt"] = 999.0
+        return table, status
+
+    monkeypatch.setattr(mod, "numerical_result", tampered)
+    audit = mod.reconcile_numerical_results(comparison, ".")
+    row = audit.checks.loc[(audit.checks.battery_id == BATTERY_110)
+                           & (audit.checks.kind == "historical_fits")].iloc[0]
+    assert not row.passed
+    assert "different" in row.detail.lower()

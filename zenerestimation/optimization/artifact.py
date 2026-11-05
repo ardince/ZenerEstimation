@@ -191,6 +191,30 @@ class OptimizationArtifact:
             ),
         }
 
+    @staticmethod
+    def _candidate_artifact_payload(candidate: CandidateResult) -> dict[str, Any]:
+        """Export safe fold-alignment summaries, not full timestamp evidence.
+
+        Complete evidence remains available on the original CandidateResult.
+        The optimization artifact intentionally excludes per-step forecast dates.
+        """
+        payload = candidate.to_dict()
+        alignment = payload["metadata"].get("fold_alignment")
+        if alignment is not None:
+            allowed = (
+                "fold_index",
+                "status",
+                "validation_steps",
+                "forecast_horizon_provided",
+                "forecast_dates_provided",
+                "timestamp_match",
+            )
+            payload["metadata"]["fold_alignment"] = [
+                {key: record[key] for key in allowed if key in record}
+                for record in alignment
+            ]
+        return payload
+
     def to_dict(self) -> dict[str, Any]:
         """Return the standardized optimization artifact."""
 
@@ -204,7 +228,7 @@ class OptimizationArtifact:
             ),
             "best": self._best_payload(),
             "candidates": [
-                candidate.to_dict()
+                self._candidate_artifact_payload(candidate)
                 for candidate
                 in self._result.candidates
             ],

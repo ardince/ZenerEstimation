@@ -296,6 +296,8 @@ class LSTMParameterSpace:
         *,
         window,
         units,
+        epochs=None,
+        batch_size=None,
     ):
         self.window = self._validate_dimension(
             "window",
@@ -304,6 +306,12 @@ class LSTMParameterSpace:
         self.units = self._validate_dimension(
             "units",
             units,
+        )
+        self.epochs = (
+            None if epochs is None else self._validate_dimension("epochs", epochs)
+        )
+        self.batch_size = (
+            None if batch_size is None else self._validate_dimension("batch_size", batch_size)
         )
 
     @staticmethod
@@ -353,17 +361,28 @@ class LSTMParameterSpace:
         return (
             len(self.window)
             * len(self.units)
+            * (len(self.epochs) if self.epochs is not None else 1)
+            * (len(self.batch_size) if self.batch_size is not None else 1)
         )
 
     def candidates(self):
-        return [
-            {
-                "window": window,
-                "units": units,
-            }
-            for window in self.window
-            for units in self.units
-        ]
+        """Deterministic Cartesian candidates; omit unspecified dimensions."""
+        from itertools import product
+
+        results = []
+        for window, units, epochs, batch_size in product(
+            self.window,
+            self.units,
+            self.epochs if self.epochs is not None else (None,),
+            self.batch_size if self.batch_size is not None else (None,),
+        ):
+            candidate = {"window": window, "units": units}
+            if epochs is not None:
+                candidate["epochs"] = epochs
+            if batch_size is not None:
+                candidate["batch_size"] = batch_size
+            results.append(candidate)
+        return results
 
     def __repr__(self):
         return (
@@ -382,6 +401,8 @@ class GRUParameterSpace:
         *,
         window,
         units,
+        epochs=None,
+        batch_size=None,
     ):
         self.window = self._validate_dimension(
             "window",
@@ -390,6 +411,12 @@ class GRUParameterSpace:
         self.units = self._validate_dimension(
             "units",
             units,
+        )
+        self.epochs = (
+            None if epochs is None else self._validate_dimension("epochs", epochs)
+        )
+        self.batch_size = (
+            None if batch_size is None else self._validate_dimension("batch_size", batch_size)
         )
 
     @staticmethod
@@ -439,17 +466,28 @@ class GRUParameterSpace:
         return (
             len(self.window)
             * len(self.units)
+            * (len(self.epochs) if self.epochs is not None else 1)
+            * (len(self.batch_size) if self.batch_size is not None else 1)
         )
 
     def candidates(self):
-        return [
-            {
-                "window": window,
-                "units": units,
-            }
-            for window in self.window
-            for units in self.units
-        ]
+        """Deterministic Cartesian candidates; omit unspecified dimensions."""
+        from itertools import product
+
+        results = []
+        for window, units, epochs, batch_size in product(
+            self.window,
+            self.units,
+            self.epochs if self.epochs is not None else (None,),
+            self.batch_size if self.batch_size is not None else (None,),
+        ):
+            candidate = {"window": window, "units": units}
+            if epochs is not None:
+                candidate["epochs"] = epochs
+            if batch_size is not None:
+                candidate["batch_size"] = batch_size
+            results.append(candidate)
+        return results
 
     def __repr__(self):
         return (
@@ -468,6 +506,8 @@ class HybridNeuralParameterSpace:
         *,
         window,
         units,
+        epochs=None,
+        batch_size=None,
     ):
         self.window = self._validate_dimension(
             "window",
@@ -476,6 +516,12 @@ class HybridNeuralParameterSpace:
         self.units = self._validate_dimension(
             "units",
             units,
+        )
+        self.epochs = (
+            None if epochs is None else self._validate_dimension("epochs", epochs)
+        )
+        self.batch_size = (
+            None if batch_size is None else self._validate_dimension("batch_size", batch_size)
         )
 
     @staticmethod
@@ -524,17 +570,28 @@ class HybridNeuralParameterSpace:
         return (
             len(self.window)
             * len(self.units)
+            * (len(self.epochs) if self.epochs is not None else 1)
+            * (len(self.batch_size) if self.batch_size is not None else 1)
         )
 
     def candidates(self):
-        return [
-            {
-                "window": window,
-                "units": units,
-            }
-            for window in self.window
-            for units in self.units
-        ]
+        """Deterministic Cartesian candidates; omit unspecified dimensions."""
+        from itertools import product
+
+        results = []
+        for window, units, epochs, batch_size in product(
+            self.window,
+            self.units,
+            self.epochs if self.epochs is not None else (None,),
+            self.batch_size if self.batch_size is not None else (None,),
+        ):
+            candidate = {"window": window, "units": units}
+            if epochs is not None:
+                candidate["epochs"] = epochs
+            if batch_size is not None:
+                candidate["batch_size"] = batch_size
+            results.append(candidate)
+        return results
 
     def __repr__(self):
         return (

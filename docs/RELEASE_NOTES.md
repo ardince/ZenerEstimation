@@ -54,6 +54,32 @@ Pending final local regression suite, Git diff review, and user-approved commit/
 
 ---
 
+# Unreleased — Milestone 16 (local development checkpoint)
+
+This entry documents completed implementation and local validation, **not** a new numbered release or a GitHub publication. Framework version metadata remains at **0.7.0**.
+
+## Added
+
+- Explicit quarterly forecast-alignment evidence and optional strict enforcement in optimization evaluation.
+- LSTM/GRU training diagnostics, neural optimization evidence, and provenance-linked reporting.
+- Dataset and training-partition fingerprints, environment provenance, and experiment manifests.
+- Cross-battery historical-fit, external-accuracy, optimized-neural, and numerical-comparison views, including dashboard and Excel exports.
+- Numerical reconciliation checks for saved results and measured-value enrichment.
+
+## Verification
+
+- Final local regression suite: **1,891 passed, 161 warnings, zero failures** (November 2026).
+- The warnings were non-failing; this entry does not imply that all underlying numerical-library warnings have been resolved.
+
+## Compatibility and limitations
+
+- Strict alignment enforcement remains **opt-in** (`require_verified_alignment=False` by default).
+- Historical fits, measured holdout evaluations, and unvalidated operational projections retain distinct interpretations; future operational estimates are not reported as measured accuracy.
+- Minor dashboard presentation refinements and additional accuracy-optimization UI work are deferred to Milestone 17.
+- Local Git commit and GitHub synchronization were **pending** when this note was prepared.
+
+---
+
 # v0.7.0
 
 ## Added

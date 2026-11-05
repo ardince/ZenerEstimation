@@ -1688,7 +1688,34 @@ Optimization of ARIMA, Kalman, LSTM, GRU, and hybrid models remains future work.
 
 ---
 
-# 36. Core Architectural Principle
+# 36. Milestone 16 — Validation, Optimization and Evidence Architecture
+
+Milestone 16 extends the forecasting framework with explicit temporal-validation evidence, traceable optimization, and cross-battery numerical reporting. These additions preserve the existing forecasting interfaces and distinguish measured evidence from model-generated estimates.
+
+## 36.1 Forecast alignment and evaluation
+
+- Quarterly forecast timestamps are checked against the validation partition; alignment evidence records status, validation dates, forecast dates, horizon, and timestamp matching.
+- Expanding-window optimization retains per-fold alignment evidence alongside RMSE, MAE, and MAPE metrics in candidate metadata.
+- Strict alignment enforcement remains **opt-in** (`require_verified_alignment=False` by default) to preserve evaluator compatibility. Enabling it requires verified alignment rather than silently accepting partial evidence.
+
+## 36.2 Neural optimization and reproducibility
+
+- LSTM and GRU optimization record training diagnostics, events, search parameters, training budgets, candidate reporting, and provenance evidence.
+- Dataset and training-partition fingerprints, environment provenance, and experiment manifests support reproducibility and traceability.
+- Forecast artifacts and verification helpers connect neural optimization results with the evidence used to evaluate them.
+
+## 36.3 Cross-battery interpretation and reporting
+
+- Battery 410 and battery 110 workflows distinguish historical fitted values, measured external holdouts, and unvalidated operational forecasts.
+- Historical-fit and external-accuracy explorers provide numerical views with explicit dates and provenance; dashboard and Excel exports expose comparison results without redefining their validation status.
+- Numerical reconciliation checks presented tables against underlying saved evidence, including date-aligned measured-value enrichment for historical fits.
+- Operational projections are **not** treated as externally validated accuracy measurements.
+
+## 36.4 Validation boundary
+
+The Milestone 16 local regression run reported **1,891 passed, 161 warnings, zero failures**. This verifies the tested implementation at that checkpoint; it does not assert that numerical-library warnings are eliminated or that future operational projections have been validated against observations.
+
+# 37. Core Architectural Principle
 
 ZenerEstimation distinguishes four stages:
 

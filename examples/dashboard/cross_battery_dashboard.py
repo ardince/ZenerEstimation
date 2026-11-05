@@ -31,9 +31,18 @@ from zenerestimation.visualization.cross_battery_dashboard_audit import (
 from zenerestimation.visualization.cross_battery_dashboard_numerical_ui import (
     render_numerical_explorer,
 )
+from zenerestimation.visualization.neural_optimization_explorer import render_neural_optimization_explorer
 from zenerestimation.visualization.cross_battery_dashboard_rul import (
     render_rul_dashboard,
 )
+
+from zenerestimation.visualization.historical_fit_explorer import render_historical_fit_explorer
+
+from zenerestimation.visualization.external_accuracy_explorer import render_external_accuracy_explorer
+
+from zenerestimation.visualization.model_performance_comparison import render_model_performance_comparison
+
+from zenerestimation.visualization.concise_dashboard import render_concise_dashboard
 
 def main() -> None:
     try:
@@ -59,6 +68,8 @@ def main() -> None:
         models = st.multiselect('Models', MODELS, default=list(MODELS))
         st.caption('Selections filter saved evidence only; no models are executed.')
 
+    st.session_state['optimized_neural_dashboard_batteries'] = tuple(selected)
+
     if not selected:
         st.info('Select at least one battery to display results.')
         return
@@ -77,21 +88,25 @@ def main() -> None:
     st.dataframe(view.summary, hide_index=True, width="stretch",
                  column_config={'best_rmse_microvolt': st.column_config.NumberColumn('Best RMSE (µV)', format='%.6f')})
 
-    st.subheader(f'Interactive model comparison · {METRIC_LABELS[metric]}')
-    st.plotly_chart(grouped_metric_chart(comparison.model_metrics, selected, models, metric),
-                    width="stretch")
-    st.caption('Each bar is a frozen benchmark metric. Hover to inspect its value and within-battery rank.')
+    st.divider()
+    render_evidence_section(comparison, repository_root=REPOSITORY_ROOT)
 
-    st.subheader('Model ranking heatmap')
-    st.plotly_chart(ranking_heatmap(comparison.model_metrics, selected, models, metric),
-                    width="stretch")
-    st.caption('Ranks are computed using all six models within each battery, even if only some are displayed. Rank 1 is best.')
+    def render_benchmark_diagnostic_charts():
+        st.subheader(f'Interactive model comparison · {METRIC_LABELS[metric]}')
+        st.plotly_chart(grouped_metric_chart(comparison.model_metrics, selected, models, metric),
+                        width="stretch")
+        st.caption('Each bar is a frozen benchmark metric. Hover to inspect its value and within-battery rank.')
 
-    st.subheader('Within-battery performance profile')
-    profile_battery = st.selectbox('Battery for detailed profile', selected,
-                                   format_func=lambda b: f'{b} ({"optimized" if b.endswith("410") else "transferred"})')
-    st.plotly_chart(battery_profile_chart(comparison.model_metrics, profile_battery, models, metric),
-                    width="stretch")
+        st.subheader('Model ranking heatmap')
+        st.plotly_chart(ranking_heatmap(comparison.model_metrics, selected, models, metric),
+                        width="stretch")
+        st.caption('Ranks are computed using all six models within each battery, even if only some are displayed. Rank 1 is best.')
+
+        st.subheader('Within-battery performance profile')
+        profile_battery = st.selectbox('Battery for detailed profile', selected,
+                                       format_func=lambda b: f'{b} ({"optimized" if b.endswith("410") else "transferred"})')
+        st.plotly_chart(battery_profile_chart(comparison.model_metrics, profile_battery, models, metric),
+                        width="stretch")
 
     with st.expander('Numerical model comparison', expanded=False):
         filtered = view.metrics.loc[view.metrics.model.isin(models)].copy(deep=True)
@@ -103,9 +118,6 @@ def main() -> None:
             '410 holdout predictions and historical fits are visual-only. '
             '110 historical fits are regenerated diagnostics, not frozen historical predictions.'
         )
-
-    st.divider()
-    render_evidence_section(comparison, repository_root=REPOSITORY_ROOT)
 
     st.divider()
 
@@ -151,7 +163,16 @@ def main() -> None:
         )
 
     st.divider()
-    render_rul_dashboard(REPOSITORY_ROOT)
+    st.divider()
+
+
+
+    st.divider()
+
+    st.divider()
+
+
+    render_concise_dashboard(REPOSITORY_ROOT, benchmark_diagnostics=render_benchmark_diagnostic_charts)
 
 if __name__ == '__main__':
     main()
