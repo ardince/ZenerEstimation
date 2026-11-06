@@ -77,6 +77,417 @@ def load_optimized_neural_forecasts(root: str | Path, run_id: str):
     return manifest, holdout, future
 
 
+def build_external_holdout_accuracy_profiles(
+    manifest: dict,
+    holdout: pd.DataFrame,
+) -> dict[str, dict]:
+    """Build measurement-only B2 profiles from saved external holdout evidence.
+
+    This function does not fit models, predict, rank candidates, or modify
+    the supplied manifest and DataFrame. Operational forecasts are excluded.
+    """
+    from zenerestimation.evaluation.accuracy_diagnostics import (
+        build_accuracy_diagnostics,
+    )
+    from zenerestimation.evaluation.accuracy_profile import (
+        build_accuracy_profile,
+    )
+
+    if not isinstance(manifest, dict):
+        raise ValueError("External holdout manifest must be a dictionary")
+    if not isinstance(holdout, pd.DataFrame):
+        raise ValueError("External holdout must be a DataFrame")
+
+    if manifest.get("evaluation_status") != (
+        "post_optimization_external_holdout_evaluation"
+    ):
+        raise ValueError("Invalid external holdout evaluation status")
+
+    dataset = manifest.get("battery")
+    if not isinstance(dataset, str) or not dataset.strip():
+        raise ValueError("Invalid external holdout dataset identity")
+
+    expected_dates = HOLDOUT.strftime("%Y-%m-%d").tolist()
+    if manifest.get("holdout_dates") != expected_dates:
+        raise ValueError("External holdout manifest dates mismatch")
+
+    selected = manifest.get("selected")
+    saved_metrics = manifest.get("external_holdout_metrics")
+    if (
+        not isinstance(selected, dict)
+        or set(selected) != set(MODELS)
+        or not isinstance(saved_metrics, dict)
+        or set(saved_metrics) != set(MODELS)
+    ):
+        raise ValueError("External holdout model metadata mismatch")
+
+    required = [
+        "date",
+        "model",
+        "actual_microvolt",
+        "predicted_microvolt",
+        "error_pred_minus_actual",
+    ]
+
+    if list(holdout.columns) != required:
+        raise ValueError("External holdout column schema mismatch")
+
+    if len(holdout) != len(MODELS) * len(HOLDOUT):
+        raise ValueError("External holdout row count mismatch")
+
+    if holdout[["date", "model"]].isna().any().any():
+        raise ValueError("Missing external holdout date or model")
+
+    frame = holdout.copy(deep=True)
+
+    try:
+        frame["date"] = pd.to_datetime(
+            frame["date"], errors="raise"
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid external holdout dates") from exc
+
+    if frame.duplicated(["model", "date"]).any():
+        raise ValueError("Duplicate external holdout model/date")
+
+    if set(frame["model"]) != set(MODELS):
+        raise ValueError("Unexpected external holdout models")
+
+    for column in required[2:]:
+        try:
+            frame[column] = pd.to_numeric(
+                frame[column], errors="raise"
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(
+                f"Invalid external holdout values: {column}"
+            ) from exc
+
+        if not np.isfinite(
+            frame[column].to_numpy(dtype=float)
+        ).all():
+            raise ValueError(
+                f"Nonfinite external holdout values: {column}"
+            )
+
+    expected_errors = (
+        frame["predicted_microvolt"]
+        - frame["actual_microvolt"]
+    )
+
+    if not np.allclose(
+        expected_errors.to_numpy(dtype=float),
+        frame["error_pred_minus_actual"].to_numpy(dtype=float),
+        rtol=0,
+        atol=1e-9,
+    ):
+        raise ValueError("External holdout signed errors inconsistent")
+
+    profiles = {}
+
+    for model in MODELS:
+        rows = frame.loc[frame["model"].eq(model)].copy()
+
+        dates = pd.DatetimeIndex(rows["date"])
+        if not dates.equals(HOLDOUT):
+            raise ValueError(
+                f"External holdout dates misaligned: {model}"
+            )
+
+        diagnostics = build_accuracy_diagnostics(
+            [
+                {
+                    "fold_index": 0,
+                    "dates": dates,
+                    "actual": rows[
+                        "actual_microvolt"
+                    ].to_numpy(dtype=float),
+                    "predicted": rows[
+                        "predicted_microvolt"
+                    ].to_numpy(dtype=float),
+                    "alignment_status": "verified",
+                }
+            ],
+            dataset=dataset,
+            model=model,
+            scope="external_holdout",
+        )
+
+        profile = build_accuracy_profile(diagnostics)
+
+        reference = saved_metrics[model]
+        checks = {
+            "rmse": profile["overall"]["rmse_microVolt"],
+            "mae": profile["overall"]["mae_microVolt"],
+            "first_step_signed_error_pred_minus_actual": (
+                profile["first_step"]["mean_error_microVolt"]
+            ),
+            "first_step_absolute_error": (
+                profile["first_step"]["mae_microVolt"]
+            ),
+        }
+
+        for name, calculated in checks.items():
+            try:
+                stored = float(reference[name])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Missing or invalid external metric: {model}/{name}"
+                ) from exc
+
+            if not np.isfinite(stored) or not np.isclose(
+                stored,
+                calculated,
+                rtol=0,
+                atol=1e-8,
+            ):
+                raise ValueError(
+                    f"External holdout metric mismatch: {model}/{name}"
+                )
+
+        profiles[model] = profile
+
+    return profiles
+
+
+def external_accuracy_profile_table(
+    profiles: dict[str, dict],
+    models,
+) -> pd.DataFrame:
+    """Return a read-only external holdout accuracy comparison table.
+
+    Only complete, verified M17-B2 external profiles are reportable.
+    Internal validation and operational future evidence are excluded.
+    """
+    from collections.abc import Mapping
+
+    if not isinstance(profiles, Mapping):
+        raise ValueError("Accuracy profiles must be a mapping")
+
+    if isinstance(models, (str, bytes)):
+        raise ValueError("Models must be a sequence of model names")
+
+    try:
+        selected = list(models)
+    except TypeError as exc:
+        raise ValueError("Models must be iterable") from exc
+
+    if not selected:
+        raise ValueError("At least one model must be selected")
+
+    if any(
+        not isinstance(model, str) or not model.strip()
+        for model in selected
+    ):
+        raise ValueError("Model names must be nonempty strings")
+
+    if len(selected) != len(set(selected)):
+        raise ValueError("Duplicate model selection")
+
+    columns = [
+        "Model",
+        "External RMSE (µV)",
+        "External MAE (µV)",
+        "External bias (µV)",
+        "First-step signed error (µV)",
+        "First-step absolute error (µV)",
+        "Alignment",
+        "Evaluation scope",
+        "Stability interpretation",
+    ]
+
+    stability_label = (
+        "Single external sequence; not cross-fold stability"
+    )
+
+    rows = []
+
+    for model in selected:
+        if model not in profiles:
+            raise ValueError(
+                f"Missing external accuracy profile: {model}"
+            )
+
+        profile = profiles[model]
+
+        if not isinstance(profile, Mapping):
+            raise ValueError(
+                f"Invalid external accuracy profile: {model}"
+            )
+
+        if profile.get("profile_version") != "m17_b2_v1":
+            raise ValueError(
+                f"Unsupported accuracy profile version: {model}"
+            )
+
+        try:
+            provenance = profile["provenance"]
+            overall = profile["overall"]
+            first_step = profile["first_step"]
+            alignment = profile["alignment_summary"]
+            stability = profile["fold_stability"]
+
+            if not all(
+                isinstance(section, Mapping)
+                for section in (
+                    provenance,
+                    overall,
+                    first_step,
+                    alignment,
+                    stability,
+                )
+            ):
+                raise ValueError("Invalid profile section")
+
+            if provenance["model"] != model:
+                raise ValueError("Profile model identity mismatch")
+
+            if provenance["scope"] != "external_holdout":
+                raise ValueError(
+                    "Only external holdout profiles are reportable"
+                )
+
+            if provenance["units"] != "microVolt":
+                raise ValueError("Unsupported accuracy units")
+
+            if alignment["fully_verified"] is not True:
+                raise ValueError(
+                    "External accuracy requires verified alignment"
+                )
+
+            if (
+                type(alignment["total_rows"]) is not int
+                or type(alignment["verified_rows"]) is not int
+                or type(alignment["positional_only_rows"]) is not int
+                or alignment["total_rows"] <= 0
+                or alignment["verified_rows"]
+                != alignment["total_rows"]
+                or alignment["positional_only_rows"] != 0
+            ):
+                raise ValueError(
+                    "Inconsistent external alignment summary"
+                )
+
+            if (
+                type(stability["fold_count"]) is not int
+                or stability["fold_count"] != 1
+            ):
+                raise ValueError(
+                    "External report requires one evaluation sequence"
+                )
+
+            values = {
+                "External RMSE (µV)": overall["rmse_microVolt"],
+                "External MAE (µV)": overall["mae_microVolt"],
+                "External bias (µV)": overall["bias_microVolt"],
+                "First-step signed error (µV)": (
+                    first_step["mean_error_microVolt"]
+                ),
+                "First-step absolute error (µV)": (
+                    first_step["mae_microVolt"]
+                ),
+            }
+
+            numeric = {}
+
+            for label, value in values.items():
+                if isinstance(value, (bool, np.bool_)):
+                    raise ValueError(
+                        f"Invalid numeric accuracy metric: {label}"
+                    )
+
+                number = float(value)
+
+                if not np.isfinite(number):
+                    raise ValueError(
+                        f"Nonfinite accuracy metric: {label}"
+                    )
+
+                numeric[label] = number
+
+            if (
+                numeric["External RMSE (µV)"] < 0
+                or numeric["External MAE (µV)"] < 0
+                or numeric["First-step absolute error (µV)"] < 0
+            ):
+                raise ValueError("Negative absolute accuracy metric")
+
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(
+                f"Invalid external accuracy profile for {model}: {exc}"
+            ) from exc
+
+        rows.append(
+            {
+                "Model": model,
+                **numeric,
+                "Alignment": "verified",
+                "Evaluation scope": "external_holdout",
+                "Stability interpretation": stability_label,
+            }
+        )
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def render_external_accuracy_profile_section(
+    manifest: dict,
+    holdout: pd.DataFrame,
+    models,
+) -> None:
+    """Render verified external holdout accuracy without changing artifacts.
+
+    The section is optional: invalid or unavailable profile evidence
+    produces a warning without preventing the main dashboard from
+    displaying its existing charts and exports.
+    """
+    import streamlit as st
+
+    if not models:
+        return
+
+    try:
+        profiles = build_external_holdout_accuracy_profiles(
+            manifest, holdout
+        )
+        table = external_accuracy_profile_table(
+            profiles, models
+        )
+    except (ValueError, KeyError, TypeError, OverflowError) as exc:
+        st.warning(
+            "External holdout accuracy profile unavailable: "
+            + str(exc)
+        )
+        return
+
+    with st.expander(
+        "External holdout accuracy profile · measured evaluation"
+    ):
+        st.caption(
+            "Independent post-selection evaluation using measured "
+            "holdout observations. These accuracy metrics are not "
+            "optimizer selection scores."
+        )
+
+        st.dataframe(
+            table,
+            hide_index=True,
+            width="stretch",
+        )
+
+        st.caption(
+            "Signed bias and first-step signed error are prediction "
+            "minus measurement (µV). Alignment is verified against "
+            "the declared holdout quarters."
+        )
+
+        st.caption(
+            "Each model has one external evaluation sequence. "
+            "This is not evidence of cross-fold stability. "
+            "Operational future accuracy remains unknown."
+        )
+
+
 def holdout_values_table(holdout: pd.DataFrame, models) -> pd.DataFrame:
     """Return measured and predicted values with the stored signed error."""
     selected = holdout.loc[holdout['model'].isin(models),
@@ -347,6 +758,13 @@ def render_optimized_neural_comparison(root: str | Path):
     if not models:
         st.info('Select at least one model to display predictions.')
         return
+
+    # M17-B2-G6-B: optional, read-only external accuracy reporting.
+    render_external_accuracy_profile_section(
+        manifest,
+        holdout,
+        models,
+    )
 
     # Only newer runs have historical fitted evidence; legacy runs stay usable.
     try:

@@ -31,6 +31,8 @@ class ForecastAlignmentError(ValueError):
             "observed_status": observed_status,
         }
 
+_UNSET = object()
+
 
 class OptimizationEvaluator:
     """
@@ -67,7 +69,36 @@ class OptimizationEvaluator:
         preprocessor=None,
         require_verified_alignment: bool = False,
         record_neural_diagnostics: bool = False,
+        record_accuracy_diagnostics: bool = False,
+        record_accuracy_profile: bool = False,
+        accuracy_dataset_id: str | None = _UNSET,
     ) -> None:
+
+        if not isinstance(record_accuracy_diagnostics, bool):
+            raise TypeError(
+                "record_accuracy_diagnostics must be a boolean"
+            )
+
+        self.record_accuracy_diagnostics = record_accuracy_diagnostics
+
+        if not isinstance(record_accuracy_profile, bool):
+            raise TypeError(
+                "record_accuracy_profile must be a boolean"
+            )
+
+        self.record_accuracy_profile = record_accuracy_profile
+
+        if accuracy_dataset_id is _UNSET:
+            accuracy_dataset_id = "internal_validation_dataset"
+        elif (
+            not isinstance(accuracy_dataset_id, str)
+            or not accuracy_dataset_id.strip()
+        ):
+            raise ValueError(
+                "accuracy_dataset_id must be a nonempty string"
+            )
+
+        self.accuracy_dataset_id = accuracy_dataset_id
 
         if not isinstance(
             splitter,
@@ -160,6 +191,15 @@ class OptimizationEvaluator:
         fold_metrics = []
         fold_alignment = []
         fold_training = [] if self.record_neural_diagnostics else None
+
+        accuracy_folds = (
+            []
+            if (
+                self.record_accuracy_diagnostics
+                or self.record_accuracy_profile
+            )
+            else None
+        )
 
         for fold in folds:
 
@@ -266,11 +306,51 @@ class OptimizationEvaluator:
                 metrics
             )
 
+            if accuracy_folds is not None:
+                accuracy_folds.append({
+                    "fold_index": fold.index,
+                    "dates": fold.validation["ds"].copy(),
+                    "actual": actual.copy(),
+                    "predicted": np.asarray(
+                        predicted, dtype=float
+                    ).copy(),
+                    "alignment_status": alignment_evidence.status,
+                })
+
         aggregated = (
             self._aggregate_metrics(
                 fold_metrics
             )
         )
+
+        accuracy_report = None
+
+        if accuracy_folds is not None:
+            from zenerestimation.evaluation.accuracy_diagnostics import (
+                build_accuracy_diagnostics,
+            )
+
+            accuracy_report = build_accuracy_diagnostics(
+                accuracy_folds,
+                dataset=self.accuracy_dataset_id,
+                model=getattr(
+                    model_factory,
+                    "__name__",
+                    type(model_factory).__name__,
+                ),
+                scope="internal_expanding_window",
+            )
+
+        accuracy_profile = None
+
+        if self.record_accuracy_profile:
+            from zenerestimation.evaluation.accuracy_profile import (
+                build_accuracy_profile,
+            )
+
+            accuracy_profile = build_accuracy_profile(
+                accuracy_report
+            )
 
         return CandidateResult(
             params=params,
@@ -288,6 +368,16 @@ class OptimizationEvaluator:
                 **({"fold_training": fold_training} if fold_training is not None else {}),
                 "preprocessing": (
                     self._preprocessing_metadata()
+                ),
+                **(
+                    {"accuracy_diagnostics": accuracy_report}
+                    if accuracy_report is not None
+                    else {}
+                ),
+                **(
+                    {"accuracy_profile": accuracy_profile}
+                    if accuracy_profile is not None
+                    else {}
                 ),
             },
         )
