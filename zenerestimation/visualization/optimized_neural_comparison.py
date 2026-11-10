@@ -5,6 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+#import hashlib
+import json
+
 MODELS = ('LSTM', 'GRU', 'LinearTrendLSTM', 'KalmanLSTM')
 HOLDOUT = pd.date_range('2024-03-01', periods=6, freq='QS-MAR')
 FUTURE = pd.date_range('2025-09-01', periods=6, freq='QS-MAR')
@@ -486,6 +489,131 @@ def render_external_accuracy_profile_section(
             "This is not evidence of cross-fold stability. "
             "Operational future accuracy remains unknown."
         )
+
+        # M17-C4-C: opt-in, read-only acceptance presentation.
+        st.divider()
+        st.markdown("**Measured RMSE acceptance filter**")
+
+        st.caption(
+            "Engineering acceptance threshold only. "
+            "This does not rank, select, retrain, or optimize models. "
+            "External holdout results are not optimizer selection scores."
+        )
+
+        threshold_choice = st.selectbox(
+            "Maximum acceptable overall RMSE",
+            options=(
+                "0.25 µV",
+                "0.50 µV (default)",
+                "1.00 µV",
+                "Custom",
+            ),
+            index=1,
+            key="m17_c4_threshold_choice",
+        )
+
+        threshold_values = {
+            "0.25 µV": 0.25,
+            "0.50 µV (default)": 0.5,
+            "1.00 µV": 1.0,
+        }
+
+        if threshold_choice == "Custom":
+            threshold = st.number_input(
+                "Custom RMSE threshold (µV)",
+                min_value=0.0,
+                value=0.5,
+                step=0.05,
+                format="%.6f",
+                key="m17_c4_custom_threshold",
+            )
+        else:
+            threshold = threshold_values[threshold_choice]
+
+        # M17-C4-D: persist approval, never cache acceptance results.
+        from zenerestimation.visualization.m17_accuracy_acceptance_view import (
+            build_accuracy_acceptance_view,
+            build_acceptance_signature,
+        )
+
+        state_key = "m17_c4_applied_signature"
+
+        try:
+            current_signature = build_acceptance_signature(
+                profiles,
+                models=models,
+                threshold_microVolt=float(threshold),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            st.session_state.pop(state_key, None)
+            st.error(
+                "Unable to identify current accuracy evidence: "
+                + str(exc)
+            )
+            current_signature = None
+
+        apply_clicked = st.button(
+            "Apply acceptance filter",
+            key="m17_c4_apply_acceptance",
+            disabled=current_signature is None,
+        )
+
+        if apply_clicked and current_signature is not None:
+            st.session_state[state_key] = current_signature
+
+        if (
+            current_signature is not None
+            and st.session_state.get(state_key)
+            == current_signature
+        ):
+            try:
+                acceptance_table = build_accuracy_acceptance_view(
+                    profiles,
+                    models=models,
+                    threshold_microVolt=float(threshold),
+                )
+
+            except (ValueError, TypeError, KeyError) as exc:
+                st.session_state.pop(state_key, None)
+                st.error(
+                    "Unable to evaluate RMSE acceptance: "
+                    + str(exc)
+                )
+
+            else:
+                st.dataframe(
+                    acceptance_table,
+                    hide_index=True,
+                    width="stretch",
+                )
+
+                if (
+                    acceptance_table["comparison_status"]
+                    .eq("descriptive_only")
+                    .any()
+                ):
+                    st.warning(
+                        "Profiles are descriptive-only. "
+                        "Comparative acceptance is not eligible."
+                    )
+                else:
+                    st.caption(
+                        "Pass means measured overall RMSE is "
+                        "at or below the selected threshold. "
+                        "Fail means it exceeds the threshold. "
+                        "No model has been automatically selected."
+                    )
+
+        elif (
+            current_signature is not None
+            and state_key in st.session_state
+        ):
+            st.info(
+                "The evidence, model selection, or threshold "
+                "has changed. Apply the acceptance filter "
+                "again to display current results."
+            )
+
 
 
 def holdout_values_table(holdout: pd.DataFrame, models) -> pd.DataFrame:
