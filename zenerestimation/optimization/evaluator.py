@@ -71,6 +71,7 @@ class OptimizationEvaluator:
         record_neural_diagnostics: bool = False,
         record_accuracy_diagnostics: bool = False,
         record_accuracy_profile: bool = False,
+        record_internal_provenance: bool = False,
         accuracy_dataset_id: str | None = _UNSET,
     ) -> None:
 
@@ -87,6 +88,10 @@ class OptimizationEvaluator:
             )
 
         self.record_accuracy_profile = record_accuracy_profile
+
+        if not isinstance(record_internal_provenance, bool):
+            raise TypeError("record_internal_provenance must be a boolean")
+        self.record_internal_provenance = record_internal_provenance
 
         if accuracy_dataset_id is _UNSET:
             accuracy_dataset_id = "internal_validation_dataset"
@@ -183,6 +188,14 @@ class OptimizationEvaluator:
             model_factory,
             params,
         )
+
+        internal_provenance = None
+        if self.record_internal_provenance:
+            from .internal_provenance import build_internal_validation_context
+
+            internal_provenance = build_internal_validation_context(
+                dataset, self.splitter, dataset_id=self.accuracy_dataset_id
+            )
 
         folds = self.splitter.split(
             dataset
@@ -365,6 +378,8 @@ class OptimizationEvaluator:
                 "selection_metric": self.metric,
                 "fold_metrics": fold_metrics,
                 "fold_alignment": fold_alignment,
+                **({"internal_provenance": internal_provenance}
+                   if internal_provenance is not None else {}),
                 **({"fold_training": fold_training} if fold_training is not None else {}),
                 "preprocessing": (
                     self._preprocessing_metadata()
