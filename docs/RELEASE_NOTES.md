@@ -4,7 +4,7 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : July 2026
+**Last Updated** : 18 November 2026
 
 ---
 
@@ -77,6 +77,60 @@ This entry documents completed implementation and local validation, **not** a ne
 - Historical fits, measured holdout evaluations, and unvalidated operational projections retain distinct interpretations; future operational estimates are not reported as measured accuracy.
 - Minor dashboard presentation refinements and additional accuracy-optimization UI work are deferred to Milestone 17.
 - Local Git commit and GitHub synchronization were **pending** when this note was prepared.
+
+---
+
+## Unreleased — Milestone 19 D1 (software-contract acceptance, 23 November 2026)
+
+This is a development acceptance entry, not a numbered release or GitHub publication.
+
+### Added and validated
+
+- Verified M18 selection / M17 internal fold evidence, preserving ranking versus pooled RMSE.
+- Fail-closed protected-holdout boundary and independent M19-C2 decision reconciliation.
+- D1-C1 read-only generalization-gap assessment facade, reporting no numerical gap or comparability.
+- Downstream B1–B4 separation and 14 adversarial test cases.
+
+### Verification
+
+- D1 combined regression: **86 passed** across eight test files.
+- Full repository regression: **3,481 passed, 161 warnings in 1,616.84 seconds (26:56), exit code 0**; previous baseline 3,445 passed, 161 warnings.
+
+### Limitations
+
+- No independent scientific authorization, external authentication, prospective access permission, benchmark participant binding, protected-holdout comparison/ranking, or numerical generalization gap is established.
+- D1-C2 numerical assessment remains deferred; acceptance is limited to tested software contracts.
+- Existing numerical/ARIMA and Keras warnings remain; this entry does not assert they were fixed.
+
+**Record:** `docs/milestones/M19_D1_Final_Acceptance_Record.md`.
+
+---
+
+# Unreleased — Milestone 19 B2-I2 (software-contract acceptance)
+
+**Accepted:** 18 November 2026. This is a local development acceptance entry, **not** a numbered release. Framework version remains **0.7.0**; no Git commit or GitHub publication is asserted.
+
+## Added
+
+- Temporal eligibility findings bound to M18 plan and execution evidence.
+- Verified target-observability and coverage reporting with provenance-aware exclusions.
+- Verified forecast-to-observation alignment and observed-only RMSE, MAE and MAPE.
+- Integrated, traceable assessment evidence with identity, digest, calendar and metric consistency checks.
+- Cross-contract adversarial tests for evidence manipulation, temporal-status precedence, scoring denominators and snapshot isolation.
+
+## Verification
+
+- Combined I2 regression: **136 passed** across nine test files, zero reported failures/errors.
+- Separately executed targeted M18 plan/execution regression: **89 passed** across two test files, zero reported failures/errors.
+- Total: **225 passing test cases across two runs**, not one 225-test invocation or a full repository regression.
+
+## Limitations
+
+- Acceptance is limited to software-contract validation; independent measurement authentication and scientific certification are **not granted**.
+- `verified_findings` and available observed-only metrics must not be represented as proof of prospective scientific validity.
+- Broader M18 and repository-wide regression are outside the reported targeted verification scope.
+
+**Record:** `M19_B2_I2_Final_Acceptance_Record.md`.
 
 ---
 

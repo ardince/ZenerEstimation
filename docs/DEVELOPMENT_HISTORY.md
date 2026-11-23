@@ -4,7 +4,7 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : July 2026
+**Last Updated** : 18 November 2026
 
 ---
 
@@ -223,6 +223,83 @@ Strengthen temporal forecast validation, make neural optimization auditable, and
 - The local Milestone 16 Git commit and any GitHub synchronization were pending at the time of this documentation update; no remote publication is claimed.
 - Dashboard refinements and further accuracy-optimization presentation work are deferred to Milestone 17.
 - This entry records a development milestone, **not** a new numbered framework release; existing version metadata remains unchanged.
+
+---
+
+# Milestone 19 — B2-I2 Scientific Eligibility Assessment (Acceptance)
+
+## Objective
+
+Establish contract-validated temporal eligibility, verified target observability, forecast alignment, observed-only metrics and integrated assessment evidence while preserving the scientific trust boundary between software consistency and independent certification.
+
+## Main Achievements
+
+- **I2-A:** Temporal eligibility with M18 plan/execution binding and explicit VERIFIED, FAILED and UNKNOWN findings.
+- **I2-B:** Observation provenance and coverage, excluding missing, interpolated, forecast-derived and unverified targets from verified-observed scoring.
+- **I2-C1:** Verified M18 forecast alignment, preserving all forecast quarters and rejecting tampered execution evidence.
+- **I2-C2:** Observed-only RMSE/MAE/MAPE with explicit zero-actual and missing-target rules.
+- **I2-C3:** Typed evidence integration, cross-contract consistency checks and detached deterministic snapshots.
+- **I2-D:** Adversarial tests covering coordinated evidence changes, status precedence, invalid M18 evidence, mixed metric denominators and source mutation.
+
+## Verification and Decision — 18 November 2026
+
+- Combined I2 regression: **136 passed, zero reported failures/errors** (nine test files).
+- Separately executed targeted M18 forecast-plan and forecast-execution regression: **89 passed, zero reported failures/errors** (two test files).
+- **225 passing test cases across two separate pytest invocations**, not one combined invocation or a full repository test run.
+- **Disposition:** M19-B2-I2 accepted at the **software-contract validation** level; independent scientific certification **not granted**.
+- Internal evidence consistency does not independently authenticate measurements, source provenance or chronology. `verified_findings` does not imply scientific certification, and available accuracy metrics cannot override incomplete/failed temporal findings.
+- No new framework release number, Git commit or GitHub synchronization is claimed.
+
+**Acceptance record:** `M19_B2_I2_Final_Acceptance_Record.md`.
+
+---
+
+# Milestone 19 — D1-B1/B2 Internal Evidence and Holdout Authorization Boundary (Acceptance)
+
+## Objective
+
+Preserve the scientific boundary between verified internal model-selection/generalization evidence and independently authorized protected-holdout assessment or cross-model benchmarking.
+
+## Main Achievements
+
+- **D1-B1:** Re-verified M18 internal selection and M17 fold accuracy evidence, preserving the difference between ranking RMSE and pooled RMSE without accessing protected-holdout targets.
+- **D1-B2-B1:** Implemented a fail-closed internal-to-holdout boundary; all protected-holdout permission flags remain false.
+- **D1-B2-B2:** Integrated read-only reconciliation with the existing M19-C2 independent benchmark authorization assessment; invalid or inconsistent decisions cannot be promoted into permission.
+- **D1-B2-B3:** Added downstream separation tests confirming that the existing single-model B1–B4 holdout evaluation contracts remain functional and do not confer cross-model authorization.
+
+## Verification and Decision — 20 November 2026
+
+- D1-B2-B2 focused tests: **12 passed**.
+- D1-B2-B3 focused tests: **10 passed**.
+- Combined D1 plus existing holdout-scoring/evidence tests: **78 passed**.
+- Full repository regression: **3,445 passed, 161 warnings in 1,520.87 seconds (25:20)**, compared with the prior **3,413 passed, 161 warnings** baseline.
+- **Disposition:** M19-D1-B1/B2 accepted at the tested software-contract level. Internal evidence does not establish external generalization, independently authenticated provenance, prospective authorization, or a protected-holdout generalization gap.
+- The focused B2-B2 tests did not exercise a complete real M19-C2 insufficient-authorization fixture; they used a controlled stub for that path. A real invalid C2 input path was rejected.
+- Existing single-model holdout scoring remains distinct from independently authorized cross-model comparison and ranking.
+- The local working tree contains substantial unrelated/untracked files. No Git commit, remote synchronization, release, or acceptance of additional D1 sections is claimed.
+
+**Checkpoint reference:** `docs/milestones/M19_D1_B1_B2_ACCEPTANCE_CHECKPOINT.md` (proposed location). Remaining M19-D1 work must be identified from an authoritative plan rather than inferred from this acceptance record.
+
+---
+
+# Milestone 19 — D1 Final Software-Contract Acceptance (23 November 2026)
+
+## Accepted scope
+
+D1-B1/B2 internal evidence verification and fail-closed protected-holdout authorization boundary; D1-C1 generalization-gap assessment facade without numerical calculation; and D1-D downstream separation and adversarial validation. Verified single-model B3/B4 evaluation artifacts do not grant independent cross-model authorization.
+
+## Regression evidence
+
+- D1-C1 focused: **17 contract tests** and **5 real-chain tests** passed.
+- D1-D2: **14 adversarial tests** passed.
+- Combined eight-file D1 suite: **86 passed** (includes D1-D2; counts not additive).
+- Full repository regression: **3,481 passed, 161 warnings in 1,616.84 seconds (26:56); pytest exit code 0**. Compared with the prior 3,445-pass full-suite baseline, 36 additional tests passed; warning count remained 161.
+
+## Decision and follow-up
+
+**Accepted at tested software-contract scope only.** Independent scientific provenance/chronology, prospective authorization, protected-holdout permissions, verified benchmark binding and numerical generalization-gap computation remain unestablished or deferred. This does not complete all M19 work. Prior D1 checkpoints retain their dated historical results. The full-suite result supersedes their previously pending full-regression status. Local Git status, exact staging, commit and GitHub push still require separate review; none is claimed.
+
+**Record:** `docs/milestones/M19_D1_Final_Acceptance_Record.md`.
 
 ---
 

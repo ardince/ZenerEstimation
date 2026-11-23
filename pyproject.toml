@@ -32,7 +32,8 @@ dependencies = [
     "scipy",
     "statsmodels",
     "scikit-learn",
-    "tensorflow"
+    "tensorflow",
+    "cryptography>=50.0.2,<51",
 ]
 
 [project.optional-dependencies]

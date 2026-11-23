@@ -1772,3 +1772,132 @@ The governing principle is:
 > Structural preparation defines what the data are. Evaluation-safe preparation defines what information the model is allowed to see. Model-specific learning defines how forecasts are generated. Standardized interpretation defines how those forecasts are evaluated, stored, compared, and communicated.
 
 This separation is the foundation for reproducible, leakage-safe, and scientifically comparable battery degradation forecasting in ZenerEstimation.
+
+---
+
+# 38. Milestone 19 — B2-I2 Scientific Eligibility Evidence Architecture (Accepted)
+
+**Acceptance date:** 18 November 2026. **Status:** Accepted at the software-contract validation level; not independently scientifically certified.
+
+M19-B2-I2 extends the M18 forecast-plan and execution-evidence boundary with a typed, auditable scientific-eligibility assessment path:
+
+```text
+M18 verified forecast plan + execution artifact
+                │
+                ├──────────────► Temporal eligibility (I2-A)
+                │
+Assessment declaration + target evidence
+                │
+                └──────────────► Target observability (I2-B)
+                                      │
+Verified M18 forecast ────────────────┤
+                                      ▼
+                         Verified alignment (I2-C1)
+                                      │
+                                      ▼
+                         Observed-only metrics (I2-C2)
+                                      │
+                  Temporal evidence + observability
+                                      │
+                                      ▼
+                         Evidence integration (I2-C3)
+                                      │
+                                      ▼
+                       Cross-contract checks (I2-D)
+```
+
+- `zenerestimation/assessment/temporal.py`: preserves verified, failed and unknown findings; verifies plan/execution and temporal boundaries.
+- `zenerestimation/assessment/observability.py`: distinguishes verified measured targets from missing, interpolated, forecast-derived or unverified targets.
+- `zenerestimation/assessment/observed_scoring.py`: aligns verified M18 forecasts with the declared calendar without dropping unobserved quarters.
+- `zenerestimation/assessment/observed_metrics.py`: calculates RMSE/MAE on eligible observed targets; MAPE excludes zero-valued actuals from its denominator.
+- `zenerestimation/assessment/evidence_integration.py`: checks assessment identity, digests, calendars, coverage and metrics, and produces detached evidence snapshots.
+
+**Validation:** 136/136 I2 tests passed in one combined run (I2-A 19, I2-B 30, I2-C1 19, I2-C2 11, I2-C3 50, I2-D 7). Separately, 89/89 targeted M18 plan/execution contract tests passed. The two runs together report 225 passing test cases; they are not one combined 225-test run.
+
+**Trust boundary:** Consistent typed evidence does not independently authenticate measurement provenance or chronology. `verified_findings` is not scientific certification; metric availability and full target coverage do not override FAILED or UNKNOWN temporal findings. Operational forecasts are not converted into measured validation evidence.
+
+**Acceptance reference:** `M19_B2_I2_Final_Acceptance_Record.md`. No framework release, Git commit, or GitHub synchronization is asserted by this entry.
+
+---
+
+---
+
+# 39. Milestone 19 — D1-B1/B2 Internal Generalization and Protected-Holdout Boundary (Accepted)
+
+**Acceptance evidence:** 20 November 2026. **Status:** M19-D1-B1/B2 accepted at the tested software-contract level. This is not independent scientific certification, protected-holdout authorization, or a Milestone 19 release.
+
+## 39.1 Scope and evidence flow
+
+M19-D1-B1 re-verifies M18 internal model-selection artifacts and reconstructs M17 internal expanding-window accuracy evidence. M19-D1-B2 establishes a read-only, fail-closed boundary between that internal evidence and protected-holdout authorization. The M19-C2 independent benchmark authorization contract remains a separate authority; the D1 reconciliation layer does not replace it.
+
+```text
+Trusted M18 selection artifact + results + validation context
+                            |
+                            v
+          D1-B1: verify internal selection and fold evidence
+                            |
+                            v
+            INTERNAL_EVIDENCE_VERIFIED (internal only)
+                            |
+                            v
+             D1-B2-B1: holdout boundary assessment
+                            |
+                            v
+                 AUTHORIZATION_REQUIRED
+                            |
+           M19-C2 independent benchmark authorization inputs
+                            |
+                            v
+             D1-B2-B2: read-only reconciliation
+                            |
+                            v
+       AUTHORIZATION_REQUIRED or AUTHORIZATION_REJECTED
+       No protected-holdout permissions are granted
+```
+
+## 39.2 Implemented contracts
+
+- `zenerestimation/comparison/generalization_internal_evidence.py` (`verify_internal_generalization_evidence`): verifies the internal selection decision and reconstructs internal fold/pooled accuracy evidence. Ranking RMSE (mean of fold RMSE values) is distinct from pooled RMSE (all eligible observations combined). The function does not assess protected-holdout targets or calculate an external generalization gap.
+- `zenerestimation/comparison/generalization_holdout_boundary.py` (`assess_generalization_holdout_boundary`): re-verifies D1-B1 evidence and returns `AUTHORIZATION_REQUIRED`; protected-holdout assessment, comparison, ranking, and disclosure permissions remain `False`.
+- `zenerestimation/comparison/generalization_authorization_integration.py` (`reconcile_generalization_authorization`): recomputes the M19-C2 authorization assessment, checks its decision digest and fail-closed contract, and rejects inconsistent supplied decisions. It cannot return an authorized state.
+- D1-B2-B3 regression tests verify separation from the existing single-model holdout eligibility, disclosure, scoring, and evaluation-evidence workflow; that workflow's production APIs were not modified by D1-B2.
+
+For D1-B1/B2, `holdout_assessed` is `False` and `generalization_gap` is `None`. Verified internal evidence is **not** proof of external generalization. A consistent digest is **not** independent authentication or prospective authorization.
+
+## 39.3 Acceptance and limitations
+
+- D1-B2-B2 focused tests: **12 passed**.
+- D1-B2-B3 downstream separation: **10 passed**.
+- Combined D1 and existing single-model B3/B4 regression: **78 passed**.
+- Full repository regression: **3,445 passed, 161 warnings, 1,520.87 seconds** (25:20); prior baseline was 3,413 passed with 161 warnings.
+- Warnings originated from statistical diagnostics/ARIMA fitting and Keras layer configuration; no new warning-count increase was reported.
+
+**Limits:** These tests validate the examined interfaces, not repository-wide access controls or independent provenance. The focused B2-B2 tests used a controlled stub for the positive-structure-but-insufficient M19-C2 decision; a real invalid C2 input path was rejected. No protected-holdout permission or measured external generalization gap is established.
+
+**Checkpoint:** `docs/milestones/M19_D1_B1_B2_ACCEPTANCE_CHECKPOINT.md` (proposed repository destination). Local Git changes and extensive untracked artifacts still require selective review; no Git commit, GitHub synchronization, framework release, or complete D1 roadmap closure is asserted.
+
+---
+
+---
+
+# 40. Milestone 19 — D1-C1/D Downstream Generalization Boundary (Accepted)
+
+**Final D1 software-contract acceptance:** 23 November 2026. This section extends the accepted D1-B1/B2 boundary described in §39; it does not authorize protected-holdout access or numerical generalization-gap calculation.
+
+## 40.1 D1-C1 fail-closed facade
+
+`zenerestimation/comparison/generalization_gap_assessment.py` exposes `assess_generalization_gap()`, which delegates to read-only D1-B2-B2 reconciliation and accepts only the fail-closed `AUTHORIZATION_REQUIRED` / `AUTHORIZATION_REJECTED` states. It preserves verified internal-evidence identity while reporting `comparability_verified = False`, `holdout_assessed = False`, `generalization_gap = None`, and `generalization_gap_metric = None`; assessment, comparison, ranking and disclosure permissions are all `False`. This facade neither computes a numerical gap nor reads protected-holdout observations.
+
+## 40.2 D1-D downstream separation and adversarial evidence
+
+Existing `holdout_error_scoring.py` scores previously disclosed, declaration-bound single-model observations; `holdout_evaluation_evidence.py` reconstructs B4 evidence. Their software-verification digests do not establish external authentication, independent time provenance, or cross-model authorization. D1-D adversarial tests reject B1/B2/B3/B4 artifact promotion, permission/data injection, and unsupported benchmark binding. Test-fixture setup and `mappingproxy` deep-copy issues were corrected without production changes.
+
+## 40.3 Verification and explicit limits
+
+- D1-C1: **17 isolated contract tests** and **5 real-chain integration tests** passed.
+- D1-D2: **14 adversarial tests** passed.
+- Eight-file D1 combined regression: **86 passed**, including the above relevant tests.
+- Full repository regression (2026-11-23): **3,481 passed, 161 warnings, 1,616.84 seconds (26:56), exit code 0**. Previous full-suite baseline: 3,445 passed, 161 warnings.
+- No independent scientific authorization, protected-holdout permission, trusted provenance/chronology, participant-to-benchmark binding, or numerical generalization-gap value is established. The D1-C2 numerical pathway remains deferred pending separate authorization and comparability contracts.
+
+**Final record:** `docs/milestones/M19_D1_Final_Acceptance_Record.md`. This is acceptance of tested D1 software contracts, not complete M19 release approval or GitHub publication.
