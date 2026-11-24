@@ -1901,3 +1901,27 @@ Existing `holdout_error_scoring.py` scores previously disclosed, declaration-bou
 - No independent scientific authorization, protected-holdout permission, trusted provenance/chronology, participant-to-benchmark binding, or numerical generalization-gap value is established. The D1-C2 numerical pathway remains deferred pending separate authorization and comparability contracts.
 
 **Final record:** `docs/milestones/M19_D1_Final_Acceptance_Record.md`. This is acceptance of tested D1 software contracts, not complete M19 release approval or GitHub publication.
+
+
+# 41. Milestone 19 — D2 Internal Fold and Ranking Sensitivity Architecture
+
+## 41.1 Scope and evidence flow
+
+M19-D2 is a retrospective, read-only diagnostic layer over **M18-verified internal expanding-window** evidence. Its public assessment entry points accept original M18 results and independently trusted validation context, rather than caller-supplied serialized intermediate reports. The verification chain is:
+
+1. `zenerestimation/optimization/internal_ranking.py` — `extract_verified_internal_fold_scores`: extracts verified per-fold RMSE and common validation dates, preserving M18 evidence checks.
+2. `zenerestimation/assessment/fold_sensitivity.py` — `assess_internal_fold_sensitivity`: reaggregates fold RMSE with each fold omitted in turn, reporting score differences and influence.
+3. `zenerestimation/assessment/ranking_sensitivity.py` — `assess_internal_ranking_sensitivity`: compares baseline and common-fold-omission rankings across models, retaining exact-tie competition ranks.
+4. `zenerestimation/assessment/ranking_stability.py` — `assess_internal_ranking_stability`: summarizes rank-change counts, winner-set-change counts, stability fractions, maximum absolute rank displacement, and per-model rank-change counts.
+
+## 41.2 Scoring and interpretation
+
+The ranking statistic is the **arithmetic mean of fold RMSE**, not observation-pooled RMSE. Leave-one-fold-out (LOFO) sensitivity reaggregates already verified fold scores; it does not retrain, rerun forecasts, or estimate new future observations. Every model omits the same fold from the common fold calendar. Exact equal scores share M18-style competition ranks (for example, 1, 1, 3); near-equal scores are not automatically tied.
+
+Rank stability is the fraction of fold omissions for which the complete rank assignment remains unchanged. Winner-set stability is the fraction for which the set of rank-1 models remains unchanged. These fractions are **descriptive properties of the available internal folds**, not probabilities of future model superiority. Insufficient folds or models produce explicit unavailable status rather than a misleading stability score.
+
+## 41.3 Evidence boundaries and acceptance
+
+D2 rejects invalid or inconsistent verified evidence and does not grant protected-holdout access, model-selection authorization, independent measurement authentication, or prospective scientific certification. Tested outputs are deterministic and do not mutate input results or validation context.
+
+D2-D cross-contract integration: **18 passed**; selected M18/D2 regression: **170 passed**. Full repository regression on 2026-11-24: **3,560 passed, 161 warnings**, exit code 0, 1664.57 seconds. The warnings are retained for separate investigation; they are not D2 acceptance failures. See `docs/milestones/M19_D2_Final_Acceptance_Record.md`.

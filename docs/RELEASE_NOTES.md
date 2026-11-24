@@ -80,6 +80,26 @@ This entry documents completed implementation and local validation, **not** a ne
 
 ---
 
+# Unreleased — Milestone 19 D2 (internal ranking sensitivity; 24 November 2026)
+
+## Added
+
+- M18-verified internal fold RMSE extraction and retrospective leave-one-fold-out score influence.
+- Common-fold cross-model ranking sensitivity with exact-tie competition ranks and winner-set changes.
+- Aggregate internal rank/winner-set stability fractions, change counts, maximum rank displacement, and per-model change counts.
+- End-to-end D2 cross-contract tests covering evidence consistency and fail-closed behavior.
+
+## Verification
+
+- D2-D focused integration: **18 passed**.
+- Selected M18/D2 regression: **170 passed**.
+- Full repository: **3,560 passed, 161 warnings**, exit code 0, 1664.57 seconds (2026-11-24).
+
+## Limitations and release status
+
+These are read-only retrospective internal diagnostics; LOFO does not retrain models. Stability fractions are not prospective performance probabilities. D2 does not authorize protected-holdout access, independent scientific certification, or model selection. The 161 reported warnings remain unresolved. This is an **unreleased local software-contract acceptance**, not a numbered release or GitHub publication.
+
+
 ## Unreleased — Milestone 19 D1 (software-contract acceptance, 23 November 2026)
 
 This is a development acceptance entry, not a numbered release or GitHub publication.

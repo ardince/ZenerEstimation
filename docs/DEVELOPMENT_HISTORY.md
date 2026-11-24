@@ -301,6 +301,32 @@ D1-B1/B2 internal evidence verification and fail-closed protected-holdout author
 
 **Record:** `docs/milestones/M19_D1_Final_Acceptance_Record.md`.
 
+
+# Milestone 19 — D2 Internal Fold and Ranking Sensitivity (24 November 2026)
+
+## Objective
+
+Add retrospective internal-fold sensitivity and ranking-stability diagnostics while preserving M18 evidence verification, the protected-holdout boundary, and the distinction between internal descriptive diagnostics and external scientific validation.
+
+## Main Achievements
+
+- D2-A: inspected M18 internal ranking evidence and interfaces.
+- D2-B1: added verified fold RMSE extraction to `zenerestimation/optimization/internal_ranking.py` without changing existing ranking behavior.
+- D2-B2: implemented per-model leave-one-fold-out (LOFO) score influence in `assessment/fold_sensitivity.py`.
+- D2-C1: implemented common-fold ranking sensitivity, exact-tie competition ranks, rank changes, and winner-set changes in `assessment/ranking_sensitivity.py`.
+- D2-C2: implemented aggregate rank/winner-set stability, maximum rank displacement, and per-model change counts in `assessment/ranking_stability.py`.
+- D2-D: added end-to-end cross-contract integration tests with evidence-boundary and consistency checks.
+
+## Verification and Decision — 24 November 2026
+
+- D2-D focused integration: **18 passed**, exit code 0.
+- Selected M18/D2 regression: **170 passed**, exit code 0.
+- Full repository: **3,560 passed, 161 warnings**, 1664.57 seconds (0:27:44), exit code 0.
+- `git diff --check`: no whitespace errors; LF-to-CRLF informational warning noted.
+
+**Decision:** M19-D2 implementation and regression accepted at the **software-contract level**. No independent scientific certification, prospective ranking reliability, protected-holdout authorization, Git publication, or numbered release is claimed. Formal documentation registration and controlled Git commit remain separate closure steps. See `docs/milestones/M19_D2_Final_Acceptance_Record.md`.
+
+
 ---
 
 # Lessons Learned

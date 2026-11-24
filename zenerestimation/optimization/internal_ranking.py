@@ -189,12 +189,8 @@ def _verify_accuracy_profile(profile, *, model, dataset_id, expected, fold_score
         )
 
 
-def rank_internal_models(results: Mapping, *, validation_context: Mapping) -> dict:
-    """Rank models by mean fold RMSE, with shared ranks for exact ties.
-
-    Context is caller-provided and must be derived from the trusted development
-    dataset; matching strings alone do not authenticate dataset provenance.
-    """
+def _verified_internal_rows(results: Mapping, *, validation_context: Mapping) -> list[dict]:
+    """Verify M18 internal evidence and return model scores with fold RMSE."""
     _require(isinstance(validation_context, Mapping), "trusted validation_context required")
     _require(validation_context.get("scope") == "internal_expanding_window", "internal validation scope required")
     dataset_id = validation_context.get("dataset_id")
@@ -255,8 +251,46 @@ def rank_internal_models(results: Mapping, *, validation_context: Mapping) -> di
             profile, model=label, dataset_id=dataset_id,
             expected=expected, fold_scores=fold_scores,
         )
-        rows.append({"model": label, "score": score})
+        rows.append({"model": label, "score": score, "fold_scores": tuple(fold_scores)})
 
+    return rows
+
+
+def extract_verified_internal_fold_scores(
+    results: Mapping, *, validation_context: Mapping
+) -> dict:
+    """Expose M18-verified internal fold RMSE without selecting a model.
+
+    The caller must supply a trusted development-dataset validation context.
+    Matching provenance records are not independent authentication.
+    """
+    rows = _verified_internal_rows(results, validation_context=validation_context)
+    rows.sort(key=lambda row: row["model"])
+    return {
+        "evidence_version": "m19_d2_verified_internal_folds_v1",
+        "scope": "internal_expanding_window",
+        "dataset_id": validation_context["dataset_id"],
+        "dataset_fingerprint": validation_context["dataset_fingerprint"],
+        "fold_validation_dates": [list(dates) for dates in validation_context["fold_validation_dates"]],
+        "models": [
+            {
+                "model": row["model"],
+                "score": row["score"],
+                "fold_rmse": list(row["fold_scores"]),
+            }
+            for row in rows
+        ],
+    }
+
+
+def rank_internal_models(results: Mapping, *, validation_context: Mapping) -> dict:
+    """Rank models by mean fold RMSE, with shared ranks for exact ties.
+
+    Context is caller-provided and must be derived from the trusted development
+    dataset; matching strings alone do not authenticate dataset provenance.
+    """
+    verified = _verified_internal_rows(results, validation_context=validation_context)
+    rows = [{"model": row["model"], "score": row["score"]} for row in verified]
     rows.sort(key=lambda row: (row["score"], row["model"]))
     prior_score = None
     current_rank = 0
