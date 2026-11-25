@@ -80,6 +80,22 @@ This entry documents completed implementation and local validation, **not** a ne
 
 ---
 
+# Unreleased — Milestone 19 D3 (internal selection diagnostics; 25 November 2026)
+
+## Added
+
+- Retrospective D3-B1 internal selection-robustness assessment with explicit unique-winner, tie, and unavailable-evidence handling.
+- D3-B2 independent recomputation of D3-B1 and D2-C2 from original M18 results and trusted validation context, with aggregate cross-contract consistency and fail-closed evidence checks.
+
+## Verification
+
+- D3-B2 focused: **38 passed**; adjacent D2/D3 regression: **108 passed**; selected M18/M19 regression: **1,507 passed**.
+- Local implementation commits: `2704dc4` (B1) and `2ab721c` (B2). No new full-repository test result is claimed.
+
+## Limitations and release status
+
+The assessments are read-only, retrospective internal diagnostics. B2's D2-C2 agreement is aggregate-level, not independently verified for every fold omission. Selection authorization remains false; no protected-holdout permission, prospective scientific certification, numbered release, or GitHub publication is asserted. See `docs/milestones/M19_D3_Final_Acceptance_Record.md`.
+
 # Unreleased — Milestone 19 D2 (internal ranking sensitivity; 24 November 2026)
 
 ## Added

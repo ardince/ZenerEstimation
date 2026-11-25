@@ -329,6 +329,19 @@ Add retrospective internal-fold sensitivity and ranking-stability diagnostics wh
 
 ---
 
+# Milestone 19 — D3 Internal Selection Robustness and Consistency (25 November 2026)
+
+## Objective and implementation
+
+Extend the M18-verified internal expanding-window diagnostic chain with selection-robustness (D3-B1) and independent aggregate selection/ranking-consistency checks (D3-B2), without promoting retrospective evidence into selection or protected-holdout authorization.
+
+- **D3-B1:** `assessment/selection_robustness.py` — diagnostic unique-winner robustness under fold omission; tied and insufficient-evidence cases retain distinct semantics. Local commit `2704dc4`.
+- **D3-B2:** `assessment/selection_consistency.py` — recomputes B1 and D2-C2 from trusted original M18 inputs and verifies evidence identity, statuses, baseline winners, omission-related evidence and aggregate consistency. Local commit `2ab721c`.
+- **Verification:** B2 focused **38 passed**; adjacent D2/D3 **108 passed**; selected M18/M19 **1,507 passed**. This was not a full-repository regression.
+
+**Decision:** D3-B1/B2 accepted at the tested software-contract level. Aggregate consistency does not establish independent omission-by-omission agreement with D2-C2. No model-selection authorization, protected-holdout permission, independent scientific certification, numbered release, or GitHub synchronization is claimed. See `docs/milestones/M19_D3_Final_Acceptance_Record.md`.
+
+---
 # Lessons Learned
 
 Several architectural principles emerged during development.

@@ -1925,3 +1925,20 @@ Rank stability is the fraction of fold omissions for which the complete rank ass
 D2 rejects invalid or inconsistent verified evidence and does not grant protected-holdout access, model-selection authorization, independent measurement authentication, or prospective scientific certification. Tested outputs are deterministic and do not mutate input results or validation context.
 
 D2-D cross-contract integration: **18 passed**; selected M18/D2 regression: **170 passed**. Full repository regression on 2026-11-24: **3,560 passed, 161 warnings**, exit code 0, 1664.57 seconds. The warnings are retained for separate investigation; they are not D2 acceptance failures. See `docs/milestones/M19_D2_Final_Acceptance_Record.md`.
+
+# 42. Milestone 19 — D3 Internal Selection Robustness and Consistency Architecture (Accepted)
+
+## 42.1 Scope and verification chain
+
+M19-D3 provides retrospective, read-only selection diagnostics over M18-verified **internal expanding-window** evidence. Public assessment entry points consume original M18 results and independently trusted validation context, rather than trusting caller-supplied serialized intermediate reports.
+
+1. `zenerestimation/assessment/selection_robustness.py` — D3-B1 evaluates baseline selection robustness under common-fold omission, preserving the distinction between a unique winner, ties, and unavailable evidence.
+2. `zenerestimation/assessment/selection_consistency.py` — D3-B2 (`assess_internal_selection_consistency`) independently recomputes B1 selection robustness and D2-C2 ranking stability and checks their source versions, scope, evidence identity, fold calendar/count, model count, statuses, baseline winner sets, omission evidence, and aggregate count/fraction relationships.
+
+For a uniquely selected baseline winner, B2 checks `recommendation_consistency_fraction == winner_set_stability_fraction >= rank_stability_fraction`. Tied baselines do not imply a unique recommendation. Insufficient evidence yields unavailable diagnostics, not fabricated zero instability. B2 does not independently reconcile every D2-C2 omission-level winner outcome because D2-C2 exposes aggregate stability metrics at that interface.
+
+## 42.2 Scientific boundaries and verification
+
+D3 diagnostics do not retrain models, generate forecasts, inspect protected external-holdout measurements, grant model-selection authority, or establish prospective scientific reliability. `selection_authorized` remains `False`. Tested outputs are deterministic and fail closed on invalid or inconsistent evidence.
+
+D3-B1 commit: `2704dc4`; D3-B2 commit: `2ab721c`. D3-B2 focused: **38 passed**; adjacent D2/D3 regression: **108 passed**; broader selected M18/M19 regression: **1,507 passed**. The 1,507-test result is **not** a new full-repository run. See `docs/milestones/M19_D3_Final_Acceptance_Record.md`. Acceptance is limited to the tested software contracts and is not a Milestone 19 release or GitHub publication.
