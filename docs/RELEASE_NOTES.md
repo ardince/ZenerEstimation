@@ -80,6 +80,31 @@ This entry documents completed implementation and local validation, **not** a ne
 
 ---
 
+# Unreleased — Milestone 19 D4 (consolidated assessment and integrated verification; 25 November 2026)
+
+## Added
+
+- Read-only consolidated internal-selection assessment (`assessment/consolidated_assessment.py`) over original M18 results and trusted validation context.
+- Separate reporting of internal selection diagnostics, optional scientific eligibility, evidence relationships, and explicit scientific boundaries.
+- D4-C1 cross-contract verification and D4-C2 adversarial tests, including observation-coverage mismatch rejection and fail-closed authorization checks.
+
+## Verification
+
+- D4-B2 adjacent regression: **121 passed**.
+- D4-C1 focused **8 passed**; combined regression **120 passed**.
+- D4-C2 focused **16 passed**; integrated regression **136 passed**. Results overlap and are not additive.
+- No production-code changes were required to resolve B02 test-fixture construction errors.
+
+## Limitations and release status
+
+- Internal recommendations are descriptive, not authorized model selections. Observed-only accuracy is not prospective certification.
+- Dataset-label agreement is not independently authenticated cross-track provenance. Protected-holdout assessment/comparison/ranking/disclosure permissions remain unavailable; no numerical external generalization gap is established.
+- This is a local software-contract checkpoint, not a numbered release, final Milestone 19 closure, or GitHub publication. B02's error-message assertion can be tightened in a later non-blocking test improvement.
+
+**Record:** `docs/milestones/M19_D4_C2_Final_Acceptance_Record.md`.
+
+---
+
 # Unreleased — Milestone 19 D3 (internal selection diagnostics; 25 November 2026)
 
 ## Added

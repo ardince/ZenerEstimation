@@ -1942,3 +1942,26 @@ For a uniquely selected baseline winner, B2 checks `recommendation_consistency_f
 D3 diagnostics do not retrain models, generate forecasts, inspect protected external-holdout measurements, grant model-selection authority, or establish prospective scientific reliability. `selection_authorized` remains `False`. Tested outputs are deterministic and fail closed on invalid or inconsistent evidence.
 
 D3-B1 commit: `2704dc4`; D3-B2 commit: `2ab721c`. D3-B2 focused: **38 passed**; adjacent D2/D3 regression: **108 passed**; broader selected M18/M19 regression: **1,507 passed**. The 1,507-test result is **not** a new full-repository run. See `docs/milestones/M19_D3_Final_Acceptance_Record.md`. Acceptance is limited to the tested software contracts and is not a Milestone 19 release or GitHub publication.
+
+
+# 43. Milestone 19 — D4 Consolidated Assessment and Cross-Contract Verification (Software-Contract Accepted)
+
+## 43.1 Scope and evidence flow
+
+M19-D4 consolidates retrospective, internally verified selection diagnostics while preserving the separate scientific eligibility, observed-accuracy, and protected-holdout authorization contracts. The implementation entry point `zenerestimation/assessment/consolidated_assessment.py` (`build_consolidated_assessment`) consumes original M18 results and trusted validation context and recomputes D3-B2 selection consistency. Optional scientific eligibility evidence is represented separately; a matching dataset identifier does not establish authenticated cross-track provenance.
+
+The consolidated output distinguishes `internal_assessment`, `scientific_eligibility`, `evidence_relationship`, and `scientific_boundaries`. It is not a new model-selection decision, independent scientific certificate, or protected-holdout assessment. D4 baseline recommendation must not be substituted for the D1 selection artifact.
+
+## 43.2 Verification contracts
+
+- D4-B2 tests exercise consolidated assessment and M18-to-D4 real paths, including unique winners, ties, insufficient evidence, and detached reporting.
+- D4-C1 cross-contract tests verify that internal ranking, B2-I2-C3 observed-only metrics, and D1 generalization authorization retain distinct evidence scopes. Authorization-required/rejected states grant no protected-holdout permissions; numerical generalization gaps remain unavailable.
+- D4-C2 adversarial tests challenge internal evidence, observation binding/coverage/metrics, authorization, scientific interpretation, and deterministic snapshot behavior. In B02, coverage is derived from valid alignment rows; the integration contract rejects inconsistency with the unchanged observability report.
+
+## 43.3 Verification and scientific boundaries
+
+Reported local pytest results: D4-B2 adjacent regression **121 passed**; D4-C1 combined regression **120 passed**; D4-C2 focused **16 passed** and integrated nine-file regression **136 passed**. These runs overlap and must not be added together. The D4-C2 B02 test currently asserts `ValueError` without pinning the specific coverage error message; tightening that assertion is a non-blocking test-hardening opportunity.
+
+`selection_authorized`, `prospective_certification_issued`, `protected_holdout_accessed`, and `optimization_executed` remain `False` in the consolidated assessment. Cross-track identity authentication, independent scientific provenance, protected-holdout authorization, prospective certification, and numerical external generalization-gap calculation are not established. Acceptance concerns tested software contracts, not a numbered release or GitHub publication.
+
+**Record:** `docs/milestones/M19_D4_C2_Final_Acceptance_Record.md`. Final M19-D4 / Milestone 19 closure and controlled Git commit remain separate pending decisions.

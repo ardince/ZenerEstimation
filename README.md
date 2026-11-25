@@ -20,3 +20,5 @@ From the repository root:
     python examples/diagnostics/run_16_4_c1_historical_fit.py
 
 This patch was tested against the supplied files, not the complete local repository.
+
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/ardince/badge.svg)](https://hub.xerj.org/contributors/ardince)

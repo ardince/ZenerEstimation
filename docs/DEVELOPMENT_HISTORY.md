@@ -341,6 +341,29 @@ Extend the M18-verified internal expanding-window diagnostic chain with selectio
 
 **Decision:** D3-B1/B2 accepted at the tested software-contract level. Aggregate consistency does not establish independent omission-by-omission agreement with D2-C2. No model-selection authorization, protected-holdout permission, independent scientific certification, numbered release, or GitHub synchronization is claimed. See `docs/milestones/M19_D3_Final_Acceptance_Record.md`.
 
+
+# Milestone 19 — D4 Consolidated Assessment and Integrated Verification (25 November 2026)
+
+## Objective and implementation
+
+Consolidate verified retrospective internal-selection diagnostics without merging their authority with observed-only scientific evidence or protected-holdout authorization.
+
+- **D4-A:** inspected evidence inventory, source interfaces, and scientific boundaries.
+- **D4-B2:** implemented `assessment/consolidated_assessment.py` and dedicated consolidated-assessment/real-path tests. The implementation recomputes selection consistency from original M18 results and trusted context; it does not authorize selection or optimization.
+- **D4-C1:** added eight cross-contract tests covering separation of internal ranking, B2-I2 observed accuracy, and D1 authorization, including provenance and deterministic-reporting boundaries.
+- **D4-C2:** added 16 adversarial tests covering internal evidence integrity, observed evidence consistency, authorization, scientific interpretation, and reproducibility. B02 test-fixture construction was corrected to respect derived coverage and row-level invariants; no production defect was demonstrated by those fixture errors.
+
+## Verification and decision
+
+- D4-B2 combined regression: **121 passed**.
+- D4-C1 focused: **8 passed**; combined regression: **120 passed**.
+- D4-C2 B02 isolated: **1 passed**; focused suite: **16 passed**; integrated regression: **136 passed** in 4.11 seconds.
+- Counts overlap; the 136-test run includes the 16 C2 tests. Results were reported from the local `zener` environment, not independently executed for this documentation review.
+
+**Decision:** D4-B2, C1, and C2 accepted at the tested software-contract level. No independent provenance authentication, prospective scientific certification, model-selection authority, protected-holdout permission, optimization execution, numbered release, or GitHub publication is claimed. B02's broad `ValueError` assertion is a non-blocking test-hardening opportunity. Final integrated M19-D4 acceptance and controlled Git commit remain pending documentation reconciliation and explicit approval.
+
+**Record:** `docs/milestones/M19_D4_C2_Final_Acceptance_Record.md`.
+
 ---
 # Lessons Learned
 
