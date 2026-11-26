@@ -1965,3 +1965,31 @@ Reported local pytest results: D4-B2 adjacent regression **121 passed**; D4-C1 c
 `selection_authorized`, `prospective_certification_issued`, `protected_holdout_accessed`, and `optimization_executed` remain `False` in the consolidated assessment. Cross-track identity authentication, independent scientific provenance, protected-holdout authorization, prospective certification, and numerical external generalization-gap calculation are not established. Acceptance concerns tested software contracts, not a numbered release or GitHub publication.
 
 **Record:** `docs/milestones/M19_D4_C2_Final_Acceptance_Record.md`. Final M19-D4 / Milestone 19 closure and controlled Git commit remain separate pending decisions.
+
+---
+
+# 44. Milestone 20 — Authorized Optimization and Grid Search (M20-A / M20-C1 Accepted)
+
+**Acceptance date:** 26 November 2026. **Status:** M20-A and M20-C1 accepted at the tested software-contract level; Milestone 20 remains in progress.
+
+## 44.1 Architecture and authority boundary
+
+M20-A reviewed the real ARIMA and Kalman forecaster interfaces, finite candidate spaces, and the authorized optimization execution contracts. The M20-B2–B5 infrastructure binds development data, validation protocol, model factory, search configuration and bounded execution to an approved plan. A process-local, single-use authorization grant is a software workflow control, not a security boundary against arbitrary code executing in the same process.
+
+The real-model grid integration uses `FiniteSearchSpace` and the existing forecaster `fit(dataset)` / `predict(steps)` lifecycle. ARIMA candidates pass `order=(p, d, q)`; Kalman candidates pass `process_noise`, `drift_noise`, `regime_factor`, and `regime_multiplier`. The integration does not require a parameter-renaming adapter.
+
+## 44.2 Evaluation and evidence semantics
+
+Authorized trials use development-only expanding-window validation. Forecast timestamps must align with the fold calendar; protected-holdout values are not inputs to tuning or ranking. The ranking RMSE is the arithmetic mean of per-fold RMSE, distinct from observation-pooled RMSE. Failed fitting trials count against the bounded trial budget and must not acquire fabricated scores. Authorization cannot be reused.
+
+## 44.3 Verification and limitations
+
+- M20-C1-B real ARIMA Grid Search: **2 passed**.
+- M20-C1-C real Kalman Grid Search: **4 passed**.
+- M20-C1-D Kalman failure-path review: **2 passed**.
+- Consolidated C1 / M20-B5-E / legacy ARIMA regression: **19 passed, 53 warnings**.
+- Earlier repository-wide baseline, before C1-B/C/D additions: **3,813 passed, 161 warnings**. No post-C1 full-repository run is claimed.
+
+The current Kalman model requires at least six training observations; the adversarial tests exercise unsuccessful fitting without claiming that this limitation was removed. Legacy ARIMA integration produces non-blocking starting-parameter warnings. Passing software-contract tests do not certify future forecasting accuracy, independent provenance, or protected-holdout scientific validity.
+
+**Acceptance record:** `docs/milestones/M20_A_C1_Acceptance_Record.md`. M20-C2 Random Search, C3 Bayesian Search, C4 neural/hybrid integration, D diagnostics/reproducibility, and E milestone-wide acceptance remain pending. No new framework release or GitHub synchronization is asserted.

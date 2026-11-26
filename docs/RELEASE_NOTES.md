@@ -4,7 +4,33 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : 18 November 2026
+**Last Updated** : 26 November 2026
+
+---
+
+# Unreleased — Milestone 20 A/C1 (authorized optimization Grid Search; 26 November 2026)
+
+This is a local software-contract acceptance checkpoint, **not** a numbered release. Framework version remains **0.7.0**.
+
+## Added and validated
+
+- M20-A review of ARIMA/Kalman real-model interfaces and authorized execution contracts.
+- M20-C1 real ARIMA and Kalman bounded Grid Search integration with development-only expanding-window ranking, strict forecast-date alignment and protected-holdout isolation.
+- Adversarial Kalman fitting-failure tests for bounded trial accounting and absence of fabricated scores.
+
+## Verification
+
+- ARIMA focused: **2 passed**; Kalman focused: **4 passed**; Kalman failure review: **2 passed**.
+- Consolidated regression: **19 passed, 53 warnings** (overlapping focused test sets).
+- Earlier full-suite baseline: **3,813 passed, 161 warnings**, before the new C1 tests; a post-C1 full-suite run has not been reported.
+
+## Limitations and status
+
+- The Kalman implementation requires at least six training observations. Legacy ARIMA integration emitted non-blocking numerical starting-parameter warnings.
+- Acceptance verifies tested software contracts, not prospective accuracy, independent scientific certification or protected-holdout authorization.
+- M20-C2/C3/C4/D/E remain open. No Git commit, GitHub publication or new framework release is asserted.
+
+**Record:** `docs/milestones/M20_A_C1_Acceptance_Record.md`.
 
 ---
 

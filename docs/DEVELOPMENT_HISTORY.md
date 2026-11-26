@@ -4,7 +4,7 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : 18 November 2026
+**Last Updated** : 26 November 2026
 
 ---
 
@@ -365,6 +365,34 @@ Consolidate verified retrospective internal-selection diagnostics without mergin
 **Record:** `docs/milestones/M19_D4_C2_Final_Acceptance_Record.md`.
 
 ---
+
+
+# Milestone 20 — A Architecture Review and C1 Authorized Grid Search (26 November 2026)
+
+## Objective
+
+Validate the authorized optimization architecture and integrate bounded, development-only Grid Search with real ARIMA and Kalman forecasters without weakening forecast alignment, authorization, or protected-holdout isolation.
+
+## Main Achievements
+
+- **M20-A:** Reviewed finite search-space mappings, ARIMA/Kalman constructors and fit/predict interfaces, and approved execution-plan boundaries.
+- **M20-B2–B5 (existing foundation):** Reused process-local single-use grants, development binding, bounded search and authorized execution contracts.
+- **M20-C1-B:** Verified real ARIMA Grid Search, fold ranking and protected-holdout independence.
+- **M20-C1-C:** Verified real Kalman Grid Search and adjacent contracts.
+- **M20-C1-D:** Exercised real Kalman fitting failures, unsuccessful-trial accounting and fail-closed behavior without fabricated scores.
+
+## Verification and Decision
+
+- C1-B **2 passed**; C1-C **4 passed**; C1-D **2 passed**.
+- Consolidated C1/B5-E/legacy ARIMA regression: **19 passed, 53 warnings**; overlapping results must not be added together.
+- Earlier full-suite baseline: **3,813 passed, 161 warnings**; it predates the new C1 tests and is not a post-C1 full-suite result.
+- **Decision:** M20-A and M20-C1 accepted at the tested software-contract level. Kalman's six-observation minimum and non-blocking ARIMA warnings remain documented. Software acceptance does not establish future scientific forecasting accuracy.
+- **Remaining:** M20-C2, C3, C4, D and E. Milestone 20 is **not complete**; no release, Git commit or GitHub publication is claimed by this entry.
+
+**Record:** `docs/milestones/M20_A_C1_Acceptance_Record.md`.
+
+---
+
 # Lessons Learned
 
 Several architectural principles emerged during development.
