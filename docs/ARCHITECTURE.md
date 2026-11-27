@@ -1993,3 +1993,28 @@ Authorized trials use development-only expanding-window validation. Forecast tim
 The current Kalman model requires at least six training observations; the adversarial tests exercise unsuccessful fitting without claiming that this limitation was removed. Legacy ARIMA integration produces non-blocking starting-parameter warnings. Passing software-contract tests do not certify future forecasting accuracy, independent provenance, or protected-holdout scientific validity.
 
 **Acceptance record:** `docs/milestones/M20_A_C1_Acceptance_Record.md`. M20-C2 Random Search, C3 Bayesian Search, C4 neural/hybrid integration, D diagnostics/reproducibility, and E milestone-wide acceptance remain pending. No new framework release or GitHub synchronization is asserted.
+
+
+---
+
+# 45. Milestone 20 — D Reproducibility and Diagnostics (Software-Contract Accepted)
+
+**Acceptance evidence:** 27 November 2026. **Status:** M20-D-B1–B4 accepted at the targeted software-contract level. This entry supplements the dated M20-A/C1 checkpoint in §44; it does not retroactively change that checkpoint.
+
+## 45.1 Read-only replay verification architecture
+
+`zenerestimation/optimization/search_replay_m20.py` independently checks recorded bounded-search evidence against the approved execution request, plan, finite search space, outcome and candidate results. The verifier reconstructs candidate selection and budget/termination consistency without rerunning model training or consuming an authorization grant. The supported strategies are Grid (D-B1), Random (D-B2) and Bayesian (D-B3).
+
+D-B4 hardens cross-strategy replay, including adaptive Bayesian next-candidate reconstruction when `max_epoch_folds` prevents a further proposal. It adds an additive `diagnostics` report containing proposal, evaluated/failed and pending counts, stop reason, trial/epoch-fold limits and reserved epoch-fold consumption. Synthetic neural-budget cases exercise this resource boundary; real ARIMA/Kalman integrations remain separate regression paths.
+
+## 45.2 Verification and scope boundary
+
+- D-B4 focused: **13 passed**.
+- D-B1–B4 combined: **71 passed, 33 warnings**.
+- Consolidated eleven-module M20-D/M20-C/M20-B5 targeted acceptance run: **106 passed, 48 warnings, zero failures**. These are overlapping runs, not additive totals.
+- Warnings came from `statsmodels` SARIMAX non-stationary autoregressive starting parameters and its zero-start fallback; no warning fix is claimed.
+- Local commits: D-B1 `933609c`; D-B2 `594f551`; D-B3 `96d6d35`; D-B4 `69f620e`.
+
+Replay verification checks internal consistency and reproducibility of recorded software behavior; it does **not** independently authenticate source measurements, certify forecasting accuracy, grant protected-holdout access or establish an adversarial in-process security boundary. No post-D full-repository regression, framework release or GitHub publication is asserted. M20-C4 neural/hybrid integration and M20-E milestone-wide acceptance remain separate outstanding work.
+
+**Acceptance record:** `docs/milestones/M20_D_Final_Acceptance_Record.md`. Documentation registration and its Git commit remain separate from the already committed D-B1–B4 implementation.

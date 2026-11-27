@@ -4,7 +4,7 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : 26 November 2026
+**Last Updated** : 27 November 2026
 
 ---
 
@@ -390,6 +390,33 @@ Validate the authorized optimization architecture and integrate bounded, develop
 - **Remaining:** M20-C2, C3, C4, D and E. Milestone 20 is **not complete**; no release, Git commit or GitHub publication is claimed by this entry.
 
 **Record:** `docs/milestones/M20_A_C1_Acceptance_Record.md`.
+
+---
+
+
+# Milestone 20 — D Reproducibility and Diagnostics (27 November 2026)
+
+## Objective
+
+Independently verify the replayability of bounded Grid, Random and Bayesian optimization evidence, strengthen resource-budget and termination checks, and provide consistent read-only diagnostics without changing the authorized execution or protected-holdout boundaries.
+
+## Main Achievements
+
+- **D-B1:** Independent Grid Search proposal/feedback replay (`933609c`).
+- **D-B2:** Seeded Random Search replay and adversarial verification (`594f551`).
+- **D-B3:** Adaptive Bayesian Search replay with independent candidate-selection reconstruction (`96d6d35`).
+- **D-B4:** Corrected Bayesian next-candidate epoch-fold budget verification; added cross-strategy neural-budget, aborted/pending, tampering, immutability and additive diagnostic coverage (`69f620e`).
+
+## Verification and Decision
+
+- D-B4 focused suite: **13 passed**.
+- D-B1–B4 combined suite: **71 passed, 33 warnings**.
+- Consolidated eleven-module D/C/B5 cross-contract suite: **106 passed, 48 warnings, zero failures**. These test runs overlap and must not be summed.
+- The 48 warnings reflect `statsmodels` SARIMAX starting-parameter fallback, not failing assertions.
+- **Decision:** M20-D-B1–B4 accepted at the **targeted software-contract level**. Independent scientific provenance, prospective forecast accuracy, protected-holdout authorization and external security certification are not established. No post-D full-repository regression is claimed.
+- M20-C4 neural/hybrid integration and M20-E milestone-wide acceptance remain separate; Milestone 20 is not declared complete. No framework version change or GitHub synchronization is asserted.
+
+**Record:** `docs/milestones/M20_D_Final_Acceptance_Record.md`. Documentation updates require separate Git review/commit.
 
 ---
 

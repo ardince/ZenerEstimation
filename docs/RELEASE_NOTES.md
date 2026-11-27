@@ -4,7 +4,33 @@
 **Framework Version** : 0.7.0  
 **Document Version** : 0.7.0  
 **Status** : Active  
-**Last Updated** : 26 November 2026
+**Last Updated** : 27 November 2026
+
+---
+
+
+# Unreleased — Milestone 20 D (reproducibility and diagnostics; 27 November 2026)
+
+This is a local software-contract acceptance checkpoint, **not** a numbered release. Framework version remains **0.7.0**. The earlier M20-A/C1 entry below remains a historical checkpoint.
+
+## Added and corrected
+
+- Independent bounded-search replay verification for Grid (D-B1), Random (D-B2) and Bayesian (D-B3) strategies.
+- D-B4 Bayesian epoch-fold termination fix, adversarial cross-strategy coverage and additive read-only diagnostic reporting.
+- Validation of completed, all-failed and aborted/pending evidence where applicable, including synthetic neural budget boundaries.
+
+## Verification
+
+- D-B4 focused: **13 passed**; D-B1–B4 combined: **71 passed, 33 warnings**.
+- Consolidated eleven-module M20-D/C/B5 targeted regression: **106 passed, 48 warnings, zero failures**. Counts overlap; no full-repository regression is asserted.
+- Warnings were `statsmodels` SARIMAX non-stationary autoregressive starting-parameter notices.
+- Local implementation commits: `933609c`, `594f551`, `96d6d35`, `69f620e`.
+
+## Limitations and status
+
+M20-D is accepted at the tested software-contract level only. Replay does not authenticate external evidence, certify future accuracy, grant protected-holdout permissions or provide an in-process adversarial security boundary. M20-C4 and M20-E remain separate outstanding work; no new release or GitHub publication is claimed.
+
+**Record:** `docs/milestones/M20_D_Final_Acceptance_Record.md`.
 
 ---
 
