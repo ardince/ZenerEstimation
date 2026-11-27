@@ -1,4 +1,4 @@
-"""M20-D-B1/B2: read-only, independent Grid, Random, and Bayesian Search replay.
+"""M20-D-B1/B2/B3/B4: independent Grid, Random, and Bayesian replay.
 
 This checks consistency of supplied evidence, not its external authenticity,
 model accuracy, or authorization validity. No model is trained or grant consumed.
@@ -295,7 +295,14 @@ def _verify_search_replay(
         elif len(proposals) == parameter_space.candidate_count:
             expected_stop = 'space_exhausted'
         else:
-            next_params = parameter_space.candidate_at(candidate_indices[len(proposals)])
+            # Bayesian selection is adaptive: reconstruct the *next* candidate
+            # from verified feedback, not the sequential grid index.
+            if strategy == 'bayesian':
+                next_index = _bayesian_replay_index(
+                    parameter_space, bayes_used, bayes_observations, bayes_rng)
+            else:
+                next_index = candidate_indices[len(proposals)]
+            next_params = parameter_space.candidate_at(next_index)
             next_cost = (next_params['epochs'] * snapshot['fold_count']
                          if request.model_family in NEURAL_FAMILIES else 0)
             expected_stop = ('max_epoch_folds'
@@ -340,4 +347,14 @@ def _verify_search_replay(
         'verified_feedback': len(feedback),
         'verified_reserved_epoch_folds': reserved,
         'outcome_status': outcome.status,
+        'diagnostics': {
+            'proposed_count': len(proposals),
+            'evaluated_count': evaluated,
+            'failed_count': failed,
+            'pending_sequence': snapshot['pending_sequence'],
+            'stop_reason': stop,
+            'max_trials': request.max_trials,
+            'max_epoch_folds': request.max_epoch_folds,
+            'reserved_epoch_folds': reserved,
+        },
     }
