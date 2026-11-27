@@ -1,4 +1,4 @@
-"""M20-D-B1/B2: read-only, independent Grid and Random Search replay.
+"""M20-D-B1/B2: read-only, independent Grid, Random, and Bayesian Search replay.
 
 This checks consistency of supplied evidence, not its external authenticity,
 model accuracy, or authorization validity. No model is trained or grant consumed.
@@ -9,6 +9,8 @@ from copy import deepcopy
 from typing import Any
 import math
 import random
+
+import numpy as np
 
 from .authorization import OptimizationExecutionRequest
 from .authorized_execution_m20 import ApprovedExecutionPlan, AuthorizedOptimizationOutcome
@@ -78,6 +80,63 @@ def verify_random_search_replay(
     )
 
 
+def verify_bayesian_search_replay(
+    *,
+    request: OptimizationExecutionRequest,
+    plan: ApprovedExecutionPlan,
+    parameter_space: FiniteSearchSpace,
+    outcome: AuthorizedOptimizationOutcome,
+) -> dict[str, Any]:
+    """Independently reconstruct adaptive Bayesian proposals from feedback."""
+    return _verify_search_replay(
+        request=request, plan=plan, parameter_space=parameter_space,
+        outcome=outcome, strategy='bayesian',
+    )
+
+
+def _bayesian_replay_index(space: FiniteSearchSpace, used: set[int],
+                           observations: list[tuple[int, float]],
+                           rng: random.Random) -> int:
+    """Independent scalar-kernel GP reference; does not invoke the search engine."""
+    available = [i for i in range(space.candidate_count) if i not in used]
+    if not observations:
+        return available[rng.randrange(len(available))]
+
+    def features(index: int) -> np.ndarray:
+        positions = []
+        for dimension in reversed(space.dimensions):
+            index, pos = divmod(index, len(dimension))
+            positions.append(pos / max(len(dimension) - 1, 1))
+        return np.asarray(positions[::-1], dtype=float)
+
+    def kernel(left: int, right: int) -> float:
+        delta = features(left) - features(right)
+        return math.exp(-0.5 * float(np.dot(delta, delta)))
+
+    observed = [index for index, _ in observations]
+    scores = [float(score) for _, score in observations]
+    scale = max(abs(score) for score in scores)
+    y = np.asarray([score / scale for score in scores] if scale else scores,
+                   dtype=float)
+    gram = np.asarray([[kernel(i, j) for j in observed] for i in observed],
+                      dtype=float)
+    gram += np.eye(len(observed)) * 1e-6
+    try:
+        alpha = np.linalg.solve(gram, y)
+        acquisitions = []
+        for index in available:
+            cross = np.asarray([kernel(index, j) for j in observed], dtype=float)
+            mean = float(cross @ alpha)
+            variance = max(0.0, 1.0 - float(cross @ np.linalg.solve(gram, cross)))
+            acquisition = mean - math.sqrt(variance)
+            _require(math.isfinite(mean) and math.isfinite(variance)
+                     and math.isfinite(acquisition), 'nonfinite Bayesian acquisition')
+            acquisitions.append(acquisition)
+    except np.linalg.LinAlgError as exc:
+        raise SearchReplayVerificationError('Bayesian surrogate solve failed') from exc
+    return available[int(np.argmin(acquisitions))]
+
+
 def _verify_search_replay(
     *,
     request: OptimizationExecutionRequest,
@@ -130,6 +189,9 @@ def _verify_search_replay(
     candidates = outcome.candidate_results
     _require(type(proposals) is list and type(feedback) is list, 'invalid histories')
     trial_limit = min(request.max_trials, parameter_space.candidate_count)
+    if strategy == 'bayesian':
+        _require(parameter_space.candidate_count <= 4096 and request.max_trials <= 128,
+                 'Bayesian search bounds exceeded')
     _require(len(proposals) <= trial_limit,
              'proposal limit exceeded')
     _require(len(feedback) == len(candidates), 'feedback / candidate count mismatch')
@@ -143,9 +205,21 @@ def _verify_search_replay(
         if strategy == 'random' else range(trial_limit)
     )
     reserved = 0
+    bayes_rng = random.Random(plan.seed)
+    bayes_used: set[int] = set()
+    bayes_observations: list[tuple[int, float]] = []
     for index, raw in enumerate(proposals):
         proposal = _record(raw, proposal_keys, f'proposal {index + 1}')
-        candidate_index = candidate_indices[index]
+        if strategy == 'bayesian':
+            candidate_index = _bayesian_replay_index(
+                parameter_space, bayes_used, bayes_observations, bayes_rng)
+            bayes_used.add(candidate_index)
+            if index < len(feedback):
+                prior = _record(feedback[index], feedback_keys, f'feedback {index + 1}')
+                if prior['status'] == 'evaluated' and _score(prior['score']):
+                    bayes_observations.append((candidate_index, float(prior['score'])))
+        else:
+            candidate_index = candidate_indices[index]
         params = parameter_space.candidate_at(candidate_index)
         cost = (params['epochs'] * snapshot['fold_count']
                 if request.model_family in NEURAL_FAMILIES else 0)
