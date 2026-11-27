@@ -1,4 +1,4 @@
-"""M20-D-B1: read-only, independent Grid Search evidence replay.
+"""M20-D-B1/B2: read-only, independent Grid and Random Search replay.
 
 This checks consistency of supplied evidence, not its external authenticity,
 model accuracy, or authorization validity. No model is trained or grant consumed.
@@ -8,18 +8,18 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 import math
+import random
 
 from .authorization import OptimizationExecutionRequest
 from .authorized_execution_m20 import ApprovedExecutionPlan, AuthorizedOptimizationOutcome
 from .search_space_m20 import FiniteSearchSpace, NEURAL_FAMILIES, candidate_digest
 
-from .search_strategy_m20 import STRATEGY_VERSION
-
 SCHEMA_VERSION = 'm20-search-replay-verification-v1'
+SUPPORTED_SNAPSHOT_VERSION = 'm20_b4_strategy_v1'
 
 
 class SearchReplayVerificationError(ValueError):
-    """Supplied search evidence violates the Grid Search replay contract."""
+    """Supplied search evidence violates the search replay contract."""
 
 
 def _require(condition: bool, message: str) -> None:
@@ -52,11 +52,46 @@ def verify_grid_search_replay(
     The supplied objects are never modified. For ABORTED outcomes, the last
     proposal may be pending, or the search may have stopped before the error.
     """
+    return _verify_search_replay(
+        request=request,
+        plan=plan,
+        parameter_space=parameter_space,
+        outcome=outcome,
+        strategy='grid',
+    )
+
+
+def verify_random_search_replay(
+    *,
+    request: OptimizationExecutionRequest,
+    plan: ApprovedExecutionPlan,
+    parameter_space: FiniteSearchSpace,
+    outcome: AuthorizedOptimizationOutcome,
+) -> dict[str, Any]:
+    """Verify Random Search history against the approved seeded order."""
+    return _verify_search_replay(
+        request=request,
+        plan=plan,
+        parameter_space=parameter_space,
+        outcome=outcome,
+        strategy='random',
+    )
+
+
+def _verify_search_replay(
+    *,
+    request: OptimizationExecutionRequest,
+    plan: ApprovedExecutionPlan,
+    parameter_space: FiniteSearchSpace,
+    outcome: AuthorizedOptimizationOutcome,
+    strategy: str,
+) -> dict[str, Any]:
     _require(type(request) is OptimizationExecutionRequest, 'invalid request type')
     _require(type(plan) is ApprovedExecutionPlan, 'invalid plan type')
     _require(type(parameter_space) is FiniteSearchSpace, 'invalid search space type')
     _require(type(outcome) is AuthorizedOptimizationOutcome, 'invalid outcome type')
-    _require(request.strategy == plan.strategy == 'grid', 'not a Grid Search execution')
+    _require(request.strategy == plan.strategy == strategy,
+             f'not a {strategy.title()} Search execution')
     _require(request.model_family == plan.model_family == parameter_space.model_family,
              'model family mismatch')
     _require(plan.request_digest == request.digest == outcome.request_digest,
@@ -74,15 +109,13 @@ def verify_grid_search_replay(
         'proposals', 'feedback',
     }
     snapshot = _record(snapshot, keys, 'search snapshot')
-
-    _require(
-        type(snapshot['version']) is str
-        and snapshot['version'] == STRATEGY_VERSION,
-        'unsupported search snapshot version',
-    )
+    _require(type(snapshot['version']) is str and bool(snapshot['version']),
+             'invalid search snapshot version')
+    _require(snapshot['version'] == SUPPORTED_SNAPSHOT_VERSION,
+             'unsupported search snapshot version')
     _require(snapshot['request_digest'] == request.digest, 'snapshot request mismatch')
     _require(snapshot['space_digest'] == parameter_space.digest, 'snapshot space mismatch')
-    _require(snapshot['strategy'] == 'grid', 'snapshot strategy mismatch')
+    _require(snapshot['strategy'] == strategy, 'snapshot strategy mismatch')
     _require(type(snapshot['seed']) is int and snapshot['seed'] == plan.seed,
              'snapshot seed mismatch')
     _require(_integer(snapshot['fold_count'], minimum=1), 'invalid fold count')
@@ -96,7 +129,8 @@ def verify_grid_search_replay(
     feedback = snapshot['feedback']
     candidates = outcome.candidate_results
     _require(type(proposals) is list and type(feedback) is list, 'invalid histories')
-    _require(len(proposals) <= min(request.max_trials, parameter_space.candidate_count),
+    trial_limit = min(request.max_trials, parameter_space.candidate_count)
+    _require(len(proposals) <= trial_limit,
              'proposal limit exceeded')
     _require(len(feedback) == len(candidates), 'feedback / candidate count mismatch')
     _require(len(feedback) <= len(proposals), 'feedback exceeds proposals')
@@ -104,16 +138,21 @@ def verify_grid_search_replay(
 
     proposal_keys = {'sequence', 'index', 'candidate_id', 'params', 'planned_epoch_folds'}
     feedback_keys = {'sequence', 'candidate_id', 'status', 'score'}
+    candidate_indices = (
+        random.Random(plan.seed).sample(range(parameter_space.candidate_count), trial_limit)
+        if strategy == 'random' else range(trial_limit)
+    )
     reserved = 0
     for index, raw in enumerate(proposals):
         proposal = _record(raw, proposal_keys, f'proposal {index + 1}')
-        params = parameter_space.candidate_at(index)
+        candidate_index = candidate_indices[index]
+        params = parameter_space.candidate_at(candidate_index)
         cost = (params['epochs'] * snapshot['fold_count']
                 if request.model_family in NEURAL_FAMILIES else 0)
         _require(type(proposal['sequence']) is int and proposal['sequence'] == index + 1,
                  'proposal sequence mismatch')
-        _require(type(proposal['index']) is int and proposal['index'] == index,
-                 'Grid Search candidate index mismatch')
+        _require(type(proposal['index']) is int and proposal['index'] == candidate_index,
+                 f'{strategy.title()} Search candidate index mismatch')
         _require(type(proposal['params']) is dict and proposal['params'] == params,
                  'candidate parameters mismatch')
         _require(type(proposal['candidate_id']) is str
@@ -182,7 +221,7 @@ def verify_grid_search_replay(
         elif len(proposals) == parameter_space.candidate_count:
             expected_stop = 'space_exhausted'
         else:
-            next_params = parameter_space.candidate_at(len(proposals))
+            next_params = parameter_space.candidate_at(candidate_indices[len(proposals)])
             next_cost = (next_params['epochs'] * snapshot['fold_count']
                          if request.model_family in NEURAL_FAMILIES else 0)
             expected_stop = ('max_epoch_folds'
@@ -219,7 +258,7 @@ def verify_grid_search_replay(
     return {
         'schema_version': SCHEMA_VERSION,
         'status': 'VERIFIED',
-        'strategy': 'grid',
+        'strategy': strategy,
         'request_digest': request.digest,
         'execution_plan_digest': plan.digest,
         'search_space_digest': parameter_space.digest,
