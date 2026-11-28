@@ -1,13 +1,41 @@
 # ZenerEstimation Release Notes
 
-**Document** : RELEASE_NOTES.md  
-**Framework Version** : 0.7.0  
-**Document Version** : 0.7.0  
-**Status** : Active  
-**Last Updated** : 27 November 2026
+**Document** : RELEASE_NOTES.md
+**Framework Version** : 0.7.0
+**Document Version** : 0.7.0
+**Status** : Active
+**Last Updated** : 28 November 2026
 
 ---
 
+
+# Unreleased — Milestone 20 Final Software-Contract Acceptance (28 November 2026)
+
+This checkpoint closes Milestone 20 at the tested software-contract level. It is **not** a new numbered framework release; version remains **0.7.0**. Earlier M20-A/C1 and M20-D entries below are preserved as dated historical checkpoints.
+
+## Added and verified
+
+- Authorized, development-only optimization with single-use local grants, dataset binding, bounded Grid/Random/Bayesian execution and temporal alignment.
+- Real ARIMA/Kalman optimization integration and LSTM, GRU, LinearTrendLSTM and KalmanLSTM integration.
+- Independent search replay, cross-strategy termination/budget diagnostics and adversarial contract coverage.
+- Milestone-wide tracked-test inventory and consolidated/full repository regressions.
+
+## Verification
+
+- **M20-E2:** 26 tracked M20 test modules; **231 passed, 66 warnings** in 253.05 seconds.
+- **M20-E3:** Full repository; **3,951 passed, 227 warnings** in 927.19 seconds.
+- Earlier pre-C1 full-suite baseline: **3,813 passed, 161 warnings**. Runs overlap; counts must not be added.
+- Warnings include ARIMA/SARIMAX fitting, Keras Sequential RNN input configuration and numerical diagnostic divide conditions; no warning fix is asserted.
+
+## Limitations and release status
+
+- Accepted software contracts do not certify prospective forecast accuracy, independent source provenance, protected-holdout authorization or an in-process adversarial security boundary.
+- Frozen measured-holdout benchmark metrics and unvalidated operational projections remain distinct and unchanged.
+- Local Git `main` reached `54bc080` before this documentation update; no final-documentation commit, GitHub push or numbered release is asserted.
+
+**Record:** `docs/milestones/M20_Final_Acceptance_Record.md`.
+
+---
 
 # Unreleased — Milestone 20 D (reproducibility and diagnostics; 27 November 2026)
 

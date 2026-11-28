@@ -2018,3 +2018,30 @@ D-B4 hardens cross-strategy replay, including adaptive Bayesian next-candidate r
 Replay verification checks internal consistency and reproducibility of recorded software behavior; it does **not** independently authenticate source measurements, certify forecasting accuracy, grant protected-holdout access or establish an adversarial in-process security boundary. No post-D full-repository regression, framework release or GitHub publication is asserted. M20-C4 neural/hybrid integration and M20-E milestone-wide acceptance remain separate outstanding work.
 
 **Acceptance record:** `docs/milestones/M20_D_Final_Acceptance_Record.md`. Documentation registration and its Git commit remain separate from the already committed D-B1–B4 implementation.
+
+---
+
+# 46. Milestone 20 — E Final Cross-Contract Verification and Software Acceptance
+
+**Acceptance evidence:** 28 November 2026. **Status:** Milestone 20 accepted at the tested software-contract level following M20-E2 and M20-E3 regression. This is an additive milestone closure; the earlier dated checkpoints in §§44–45 are retained as historical statements.
+
+## 46.1 Integrated optimization and evidence boundary
+
+The accepted M20 software path binds a development dataset, approved finite search space, validation protocol, model factory and bounded execution to a local single-use authorization workflow. Grid, Random and Bayesian searches use development-only expanding-window validation with verified forecast-date alignment and fold-based ranking. Real-model integration covers ARIMA, Kalman, LSTM, GRU, LinearTrendLSTM and KalmanLSTM. Independent read-only replay reconstructs recorded search behavior without model retraining or consuming a grant.
+
+The process-local grant is not an adversarial in-process security boundary. Search ranking RMSE (mean of fold RMSE) is distinct from pooled observation RMSE. Protected-holdout measurements do not become tuning inputs or automatically authorized benchmark evidence.
+
+## 46.2 Consolidated verification
+
+- **M20-E1:** 26 tracked `tests/test_m20_*.py` modules inventoried. An untracked corrected-copy test was excluded from the tracked test selection.
+- **M20-E2:** `python -m pytest @M20Tests -q` — **231 passed, 66 warnings, 253.05 seconds**.
+- **M20-E3:** `python -m pytest -q` — **3,951 passed, 227 warnings, 927.19 seconds**.
+- Previous documented pre-C1 full-suite baseline: **3,813 passed, 161 warnings**. Counts from overlapping test runs are not additive.
+
+The warnings include SARIMAX initialization/convergence, Keras RNN input configuration, and numerical diagnostic divide warnings. Successful tests do not demonstrate that these warnings were corrected.
+
+## 46.3 Scientific and operational limitations
+
+M20 software acceptance does not independently authenticate provenance or chronology, certify prospective forecast accuracy, authorize protected-holdout use, establish an external generalization gap, or modify frozen benchmark evidence. Framework version remains **0.7.0**. Local Git commits are evidenced through `54bc080`; final documentation commit, GitHub publication and numbered release remain separate steps.
+
+**Final record:** `docs/milestones/M20_Final_Acceptance_Record.md`. See also the historical M20-A/C1, M20-C4 and M20-D acceptance records.
